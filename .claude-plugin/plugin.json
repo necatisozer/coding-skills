@@ -1,0 +1,8 @@
+{
+  "name": "coding-skills",
+  "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
+  "version": "0.0.1",
+  "author": {
+    "name": "Necati Sözer"
+  }
+}

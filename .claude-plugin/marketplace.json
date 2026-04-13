@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "coding-skills",
+  "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
+  "owner": {
+    "name": "Necati Sözer"
+  },
+  "plugins": [
+    {
+      "name": "coding-skills",
+      "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
