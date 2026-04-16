@@ -22,6 +22,34 @@ val scope = rememberCoroutineScope()
 ## Back Handling
 Use `NavigationBackHandler` (from `navigationevent-compose`) instead of `PredictiveBackHandler` or `BackHandler` when the dependency is available.
 
+**Never use `isBackEnabled = false` to block navigation.** Disabling the handler causes the gesture to fall through to the Navigation library's default handler, which pops the screen — the opposite of blocking. Instead, keep the handler enabled and guard inside `onBackCompleted`:
+
+```kotlin
+// GOOD - handler intercepts and swallows the gesture
+NavigationBackHandler(
+  state = rememberNavigationEventState(NavigationEventInfo.None),
+  onBackCompleted = { if (canGoBack) onBackClick() },
+)
+
+// BAD - disabling handler lets gesture fall through to default pop
+NavigationBackHandler(
+  state = rememberNavigationEventState(NavigationEventInfo.None),
+  isBackEnabled = canGoBack,
+  onBackCompleted = { onBackClick() },
+)
+```
+
+## rememberSaveable for UI State
+Use `rememberSaveable` instead of `remember` for UI state that must survive navigation recomposition (e.g., collapsing bar offset, scroll-linked values). Primitive types (`Float`, `Int`, `Boolean`, `String`) are auto-saved — no custom `Saver` needed:
+
+```kotlin
+// GOOD - survives navigation recomposition
+var offsetPx by rememberSaveable { mutableFloatStateOf(0f) }
+
+// BAD - resets to 0 when composable re-enters composition
+var offsetPx by remember { mutableFloatStateOf(0f) }
+```
+
 ## Batch State Updates
 Use `Snapshot.withMutableSnapshot { }` to atomically update multiple `mutableStateOf` variables. Required from background threads. Also useful on the main thread when snapshot observers (e.g., `snapshotFlow`) need to see a consistent combined state.
 
