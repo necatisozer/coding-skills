@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Enforces Kotlin file organization, idioms, and type design when writing data classes, sealed interfaces, enums, value classes, delegation, Duration/Instant APIs, or organizing files.
+description: Enforces Kotlin file organization, idioms, and type design when writing data classes, sealed interfaces, enums, value classes, delegation, Duration/Instant APIs, KMP native-SDK wrappers, or organizing files.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---
@@ -80,4 +80,34 @@ fun process(names: List<String>, ids: List<Int>)
 @JvmInline value class Names(val value: List<String>)
 @JvmInline value class Ids(val value: List<Int>)
 fun process(names: Names, ids: Ids)
+```
+
+## Native SDK Wrappers (KMP)
+When wrapping a platform SDK in `commonMain` with `expect`/`actual`:
+
+1. Mirror the SDK's public API surface. Expose the same method names and overloads the native SDK offers — don't invent convenience methods the SDK doesn't have.
+2. Delegate constants to the SDK via `expect`/`actual`. Don't declare `const val` with string literals in `commonMain` — the SDK is the source of truth, and a wrapper should pick up value changes automatically.
+
+```kotlin
+// BAD - hardcoded literal duplicates the SDK's constant
+public object VendorConstants {
+  public const val SOME_NAME: String = "some-value"
+}
+
+// GOOD - common expect delegates to the SDK in each actual
+// commonMain
+public expect object VendorConstants {
+  public val SOME_NAME: String
+}
+
+// androidMain
+public actual object VendorConstants {
+  public actual val SOME_NAME: String = com.vendor.sdk.VendorConstants.SOME_NAME
+}
+
+// iosMain
+public actual object VendorConstants {
+  public actual val SOME_NAME: String
+    get() = cocoapods.VendorFramework.VendorSdkSomeName!!
+}
 ```
