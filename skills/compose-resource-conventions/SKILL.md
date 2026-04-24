@@ -49,3 +49,20 @@ Match design name, no `ic_` prefix. Create `ImageVector` via `by lazy`.
 
 ## Apostrophes in Compose Multiplatform
 Don't escape apostrophes with `\'` in Compose Multiplatform string resources — the backslash renders literally (unlike Android resources).
+
+## Plural Placeholders Must Be Positional
+Compose Multiplatform's string formatter only substitutes **positional** specifiers (`%1$d`, `%2$s`). Bare `%d` / `%s` are left as literal text — the UI will render `%d items` instead of `5 items`. This applies to both `stringResource` and `pluralStringResource`.
+
+```xml
+<!-- GOOD -->
+<plurals name="item_count">
+    <item quantity="one">%1$d item</item>
+    <item quantity="other">%1$d items</item>
+</plurals>
+
+<!-- BAD — %d renders literally -->
+<plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+</plurals>
+```
