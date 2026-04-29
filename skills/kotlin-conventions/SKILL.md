@@ -47,6 +47,26 @@ sealed interface Result {
 }
 ```
 
+## Never Rely on Enum `.name` for Persistence
+`Enum.name` returns the source-code identifier and changes the moment someone renames an entry. Never use it for analytics events/properties, serialization, wire formats, database storage, file paths, or anything else that outlives a build. Declare an explicit stable string per entry — a refactor of the entry name then can't silently break dashboards, payloads, or stored rows.
+
+```kotlin
+// BAD - rename Failed → FailedRetryable silently breaks dashboards/stored rows
+enum class OrderStatus { Pending, Shipped, Delivered, Cancelled }
+analytics.log("status" to status.name)
+
+// GOOD - explicit serial name decouples source identifier from persisted string
+enum class OrderStatus(val serialName: String) {
+  Pending("pending"),
+  Shipped("shipped"),
+  Delivered("delivered"),
+  Cancelled("cancelled"),
+}
+analytics.log("status" to status.serialName)
+```
+
+For kotlinx.serialization, use `@SerialName` to pin the JSON key — see the kotlin-serialization-conventions skill.
+
 ## Value Classes
 Use `@JvmInline value class` instead of `data class` for single-property wrappers (identifiers, typed strings).
 
