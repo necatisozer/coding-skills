@@ -75,6 +75,29 @@ private fun MyComponent(modifier: Modifier = Modifier) {
 }
 ```
 
+## Minimum Interactive Component Size
+Material3 interactive components (`Surface(onClick = ...)`, `IconButton`, etc.) enforce a 48dp minimum interactive size via `LocalMinimumInteractiveComponentSize`. The component renders at its visible size but reserves a 48dp layout box, with invisible padding around it. This breaks pixel-perfect design matching:
+
+- A 32dp visible chip occupies 48dp of layout space (8dp invisible padding on each side)
+- `Modifier.padding(N.dp)` from a parent edge reads as `(N + 8).dp` visually
+- `Arrangement.spacedBy(N.dp)` between chips reads as `(N + 16).dp` between visible edges
+
+When the design requires tight spacing or chips smaller than 48dp, override the local with `Dp.Unspecified` so dp values become visually accurate. Trade-off: the actual touch target shrinks below Material's accessibility floor — accept only when the design explicitly requires it.
+
+```kotlin
+// GOOD - 32dp visible chip occupies 32dp of layout, dp values match what's seen
+CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+  Surface(onClick = onClick, shape = shape) {
+    Box(modifier = Modifier.padding(4.dp)) { Icon(imageVector = icon, contentDescription = null) }
+  }
+}
+
+// BAD - 32dp visible chip is wrapped in invisible 48dp padding
+Surface(onClick = onClick, shape = shape) {
+  Box(modifier = Modifier.padding(4.dp)) { Icon(imageVector = icon, contentDescription = null) }
+}
+```
+
 ## Lazy Layout Keys
 Provide `key` to lazy layout items for performance. Ensure keys are unique — use `distinctBy` to filter duplicates before passing to `items(key = ...)`, as duplicate keys crash the app.
 
