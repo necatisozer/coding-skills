@@ -47,6 +47,21 @@ Match design name, no `ic_` prefix. Create `ImageVector` via `by lazy`.
 - Use `stringResource(Res.string.key, args)` for formatted values — `%1$d` localizes digits, `%1$s` for strings.
 - Never hardcode the app name — use a dynamic source and `%1$s` placeholders in string resources.
 
+## Per-Resource Imports Are Required
+Compose Multiplatform's Resources plugin generates each accessor as a top-level extension property in the `Res` object's package (e.g., `Res.string.home_title` is `<res-package>.home_title`). Unlike Android's `R.string.*` — where importing the `R` class covers every resource — every CMP accessor needs its own import. Adding a `<string>` / drawable / font without also adding `import <res-package>.<name>` in every consumer file produces "Unresolved reference '<name>'" at compile time, which is easy to misdiagnose as a stale resource codegen or Gradle cache problem.
+
+```kotlin
+// GOOD — accessor imported alongside the call site
+import com.example.app.home_title
+
+stringResource(Res.string.home_title)
+
+// BAD — fails with "Unresolved reference 'home_title'"
+stringResource(Res.string.home_title)
+```
+
+When adding a resource and a call site in the same change, scan the consumer file for the existing `import <res-package>.<other_resource>` lines and add the new one alphabetically.
+
 ## Apostrophes in Compose Multiplatform
 Don't escape apostrophes with `\'` in Compose Multiplatform string resources — the backslash renders literally (unlike Android resources).
 
