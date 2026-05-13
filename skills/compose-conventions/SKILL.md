@@ -131,5 +131,92 @@ Use `GridCells.Adaptive(minSize)` instead of `GridCells.Fixed` for responsive la
 ## Window Insets
 For scrollable content, apply insets as content padding, not outside padding. Components should never reference `WindowInsets` directly — accept `contentPadding: PaddingValues` and let screens pass insets.
 
+## Previews
+
+Add `@Preview` composables for every screen and every standalone-file composable, one per meaningful visible state (loading, populated, empty, each error, each major variant). Inline helpers (private composables in the same file as their only caller) are covered by the parent's preview and don't need their own.
+
+**Co-locate** previews with the composable they preview — keep them in the same file, not in a sibling `preview/` package. Future readers see all visible states next to the code that renders them, and `private` content composables remain reachable from the preview without relaxing visibility.
+
+### Setup (Compose Multiplatform 1.10+)
+
+In `commonMain` add the new annotation artifact (the old `org.jetbrains.compose.components:components-ui-tooling-preview` is deprecated in CMP 1.10+):
+
+```kotlin
+commonMain.dependencies {
+  implementation("org.jetbrains.compose.ui:ui-tooling-preview:<compose-version>")
+}
+```
+
+The tooling library (which Android Studio loads to render the preview) goes on a different configuration depending on the Android target plugin:
+
+- Classic `androidTarget {}` / `com.android.library` → `debugImplementation("org.jetbrains.compose.ui:ui-tooling:<compose-version>")`
+- New `androidLibrary {}` / `com.android.kotlin.multiplatform.library` → `androidRuntimeClasspath("org.jetbrains.compose.ui:ui-tooling:<compose-version>")` (the new plugin does NOT expose `debugImplementation` as a top-level configuration; using it produces an "Unresolved reference 'debugImplementation'" script error)
+
+Import `androidx.compose.ui.tooling.preview.Preview` — the `org.jetbrains.compose.ui.tooling.preview.Preview` alias is deprecated and emits a warning.
+
+### Theme wrapper
+
+Don't wrap previews in your app's bare theme composable. App themes typically default to `isSystemInDarkTheme()` (returns `false` in the preview pane regardless of IDE setting) and don't provide `LocalContentColor` / `LocalTextStyle` — those are usually set at the activity root via a separate `CompositionLocalProvider`. The result is a light-theme preview with `Color.Black` content color, leaving icons invisible on dark surfaces.
+
+Create a single `PreviewTheme` helper in your presentation/UI module that mirrors what the activity root does — force the right theme variant, paint the screen background, provide `LocalContentColor` / `LocalTextStyle` — and use it in every preview:
+
+```kotlin
+@Suppress("ktlint:compose:modifier-missing-check")
+@Composable
+fun PreviewTheme(content: @Composable () -> Unit) {
+  Theme(darkTheme = true) { // match your app's enforced theme
+    Box(modifier = Modifier.fillMaxSize().background(Theme.colorScheme.background)) {
+      CompositionLocalProvider(
+        LocalContentColor provides Theme.colorScheme.onBackground,
+        LocalTextStyle provides Theme.typography.body14,
+        content = content,
+      )
+    }
+  }
+}
+```
+
+### `showSystemUi`
+
+Do NOT pass `showSystemUi = true` to `@Preview` for screens whose visual depends on a dark background. Android Studio renders the status- and nav-bar zones as opaque light strips that paint over the composable, leaving a pale band above the toolbar that does not match the design (and that does not represent how the app renders edge-to-edge at runtime). There is no per-annotation flag to make those zones transparent.
+
+Use bare `@Preview` — `WindowInsets.safeDrawing` returns zero in that mode, so the toolbar sits flush at the top, matching how design mocks are usually composed (system bar omitted or drawn as a decorative element).
+
+### Sample data
+
+Pull preview inputs into `private` top-level vals, and (for screens with large state objects) a `private fun previewState(...)` helper that fills in defaults. Don't hand-craft a full state object inside each `@Preview` body — the duplication makes it hard to compare what differs between two states. Event lambdas in the state are always `{}` in previews — they're never invoked.
+
+```kotlin
+private val previewItem = Item(id = "1", title = "Sample", price = 4.99)
+
+private fun previewState(
+  isLoading: Boolean = false,
+  items: List<Item> = listOf(previewItem),
+  selectedId: String? = null,
+) = ScreenState(
+  isLoading = isLoading,
+  items = items,
+  selectedId = selectedId,
+  onItemClick = {},
+  onBackClick = {},
+)
+
+@Preview
+@Composable
+private fun ScreenLoadingPreview() {
+  PreviewTheme { Screen(state = previewState(isLoading = true)) }
+}
+
+@Preview
+@Composable
+private fun ScreenLoadedPreview() {
+  PreviewTheme { Screen(state = previewState()) }
+}
+```
+
+### Cross-platform safety
+
+Even though the new `androidx.compose.ui.tooling.preview.Preview` annotation is multiplatform-safe and no-ops on iOS, the *sample data* you reference still has to compile on every target. Verify with the iOS compile task (e.g., `:<module>:compileKotlinIosSimulatorArm64`) before committing — a `RowScope`-only helper or an Android-only type in your sample data will silently break the iOS build.
+
 ## Resources
 For image formats, icon naming, and string resource conventions, see the `compose-resource-conventions` skill.
