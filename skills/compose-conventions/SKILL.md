@@ -165,7 +165,7 @@ Create a single `PreviewTheme` helper in your presentation/UI module that mirror
 @Composable
 fun PreviewTheme(content: @Composable () -> Unit) {
   Theme(darkTheme = true) { // match your app's enforced theme
-    Box(modifier = Modifier.fillMaxSize().background(Theme.colorScheme.background)) {
+    Box(modifier = Modifier.background(Theme.colorScheme.background)) {
       CompositionLocalProvider(
         LocalContentColor provides Theme.colorScheme.onBackground,
         LocalTextStyle provides Theme.typography.body14,
@@ -175,6 +175,8 @@ fun PreviewTheme(content: @Composable () -> Unit) {
   }
 }
 ```
+
+Do NOT add `Modifier.fillMaxSize()` to that outer `Box`. Screen previews already self-expand because the screen's own root usually does `Modifier.fillMaxSize().background(...)`, so the Box wraps that and renders edge-to-edge anyway. But component previews (a button, a card, a section) would inherit the forced full size and render against a full-screen dark backdrop instead of wrapping tightly. With a bare `.background(...)` modifier the Box wraps its content, so screens stay full-size and components render at their intrinsic size with the dark background painted only behind their footprint.
 
 ### `showSystemUi`
 
