@@ -126,7 +126,27 @@ LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { player.pause() }
 State flows down, events flow up. UI event lambdas must be `() -> Unit` — never return data.
 
 ## Lazy Grid Columns
-Use `GridCells.Adaptive(minSize)` instead of `GridCells.Fixed` for responsive layouts.
+Use `GridCells.Adaptive(minSize)` instead of `GridCells.Fixed` — `Fixed` ignores screen width and breaks on tablets, foldables, and landscape.
+
+Derive `minSize` from the target **column count on the smallest supported phone**, not by guessing pixel values. `Adaptive` packs as many columns as fit; if `minSize` is too small, narrow phones gain an extra column and the design breaks.
+
+Given target column count `N`, item horizontal arrangement `S`, and the smallest phone container width `W` after subtracting horizontal content padding (typically `360.dp − 2 × 16.dp = 328.dp`), pick any `minSize` in:
+
+```
+((W − N × S) / (N + 1))  <  minSize  ≤  ((W − (N − 1) × S) / N)
+```
+
+The lower bound prevents `N + 1` columns from fitting; the upper bound guarantees `N` columns fit. Pick a round number near the **upper** bound so layout cards have headroom.
+
+Reference values for `W = 328.dp` (360-wide phone, 16dp side padding) and `S = 8.dp`:
+
+| Target columns | Valid `minSize` range | Recommended |
+|---|---|---|
+| 2 | (104, 160] | `160.dp` |
+| 3 | (78, 104] | `110.dp` for 390-wide phones; `104.dp` if you must support 360-wide |
+| 4 | (62, 76] | `80.dp` for 390-wide; `76.dp` for 360-wide |
+
+If the design spec calls out a fixed card width, use that width as `minSize` and let `LazyVerticalGrid` stretch cells to fill — never hard-code `Modifier.width(...)` on grid items, since adaptive widths must absorb the slack from `(W − content) / N`.
 
 ## Window Insets
 For scrollable content, apply insets as content padding, not outside padding. Components should never reference `WindowInsets` directly — accept `contentPadding: PaddingValues` and let screens pass insets.
