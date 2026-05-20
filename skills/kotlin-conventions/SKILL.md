@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Enforces Kotlin file organization, idioms, and type design when writing data classes, sealed interfaces, enums, value classes, delegation, Duration/Instant APIs, KMP native-SDK wrappers, or organizing files.
+description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (and never relying on `.name` for persistence), value classes (including for API enum-like strings), interface delegation, annotations, Pair/Triple, list construction (`listOf`/`listOfNotNull`/`buildList`), wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure across `parametersOf`/factory boundaries, file naming, and where to put mappers.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---

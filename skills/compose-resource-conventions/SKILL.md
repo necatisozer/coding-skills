@@ -1,6 +1,6 @@
 ---
 name: compose-resource-conventions
-description: Guides image format selection and string resource conventions when adding icons, ImageVector, WebP assets, stringResource, or content descriptions in Compose Multiplatform.
+description: Use whenever adding, editing, or deleting any Compose Multiplatform resource — strings.xml entries, plurals, drawables (WebP/PNG/SVG), ImageVectors, fonts, anything under composeResources/ — or modifying call sites that reference Res.string.*, Res.drawable.*, Res.font.*, stringResource, pluralStringResource, painterResource. Covers image format selection, naming, sizing, apostrophe escaping (don't `\'` in CMP), positional plural specifiers (`%1$d` not `%d`), and the per-resource imports CMP requires for every Res.* accessor.
 user-invocable: false
 paths: "**/*.kt,**/*.webp,**/*.png,**/*.xml"
 ---

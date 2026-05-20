@@ -1,6 +1,6 @@
 ---
 name: compose-conventions
-description: Enforces Compose UI patterns when writing @Composable functions, Modifier chains, LazyColumn/LazyGrid, mutableStateOf, lifecycle effects, WindowInsets, or Snapshot. Covers UDF, padding, keys, and back handling.
+description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, and lazy-layout keys.
 user-invocable: false
 paths: "**/*.kt"
 ---
