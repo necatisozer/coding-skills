@@ -1,6 +1,6 @@
 ---
 name: compose-conventions
-description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, and lazy-layout keys.
+description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, lazy-layout keys, iOS system permission dialogs, navigation route argument types, dismissing a Dialog before presenting a native modal, one-shot preselect effects, and keyed remember caches.
 user-invocable: false
 paths: "**/*.kt"
 ---
@@ -143,8 +143,8 @@ Reference values for `W = 328.dp` (360-wide phone, 16dp side padding) and `S = 8
 | Target columns | Valid `minSize` range | Recommended |
 |---|---|---|
 | 2 | (104, 160] | `160.dp` |
-| 3 | (78, 104] | `110.dp` for 390-wide phones; `104.dp` if you must support 360-wide |
-| 4 | (62, 76] | `80.dp` for 390-wide; `76.dp` for 360-wide |
+| 3 | (76, 104] | `110.dp` for 390-wide phones; `104.dp` if you must support 360-wide |
+| 4 | (59.2, 76] | `80.dp` for 390-wide; `76.dp` for 360-wide |
 
 If the design spec calls out a fixed card width, use that width as `minSize` and let `LazyVerticalGrid` stretch cells to fill — never hard-code `Modifier.width(...)` on grid items, since adaptive widths must absorb the slack from `(W − content) / N`.
 
@@ -188,7 +188,7 @@ fun PreviewTheme(content: @Composable () -> Unit) {
     Box(modifier = Modifier.background(Theme.colorScheme.background)) {
       CompositionLocalProvider(
         LocalContentColor provides Theme.colorScheme.onBackground,
-        LocalTextStyle provides Theme.typography.body14,
+        LocalTextStyle provides Theme.typography.bodyMedium,
         content = content,
       )
     }
@@ -209,7 +209,7 @@ Use bare `@Preview` — `WindowInsets.safeDrawing` returns zero in that mode, so
 Pull preview inputs into `private` top-level vals, and (for screens with large state objects) a `private fun previewState(...)` helper that fills in defaults. Don't hand-craft a full state object inside each `@Preview` body — the duplication makes it hard to compare what differs between two states. Event lambdas in the state are always `{}` in previews — they're never invoked.
 
 ```kotlin
-private val previewItem = Item(id = "1", title = "Sample", price = 4.99)
+private val previewItem = Item(id = "1", title = "Sample", subtitle = "Example")
 
 private fun previewState(
   isLoading: Boolean = false,
@@ -239,6 +239,77 @@ private fun ScreenLoadedPreview() {
 ### Cross-platform safety
 
 Even though the new `androidx.compose.ui.tooling.preview.Preview` annotation is multiplatform-safe and no-ops on iOS, the *sample data* you reference still has to compile on every target. Verify with the iOS compile task (e.g., `:<module>:compileKotlinIosSimulatorArm64`) before committing — a `RowScope`-only helper or an Android-only type in your sample data will silently break the iOS build.
+
+## Trigger iOS System Permission Dialogs from UI Composition
+iOS system permission dialogs need the app's window to be active and on-screen. In practice they're silently suppressed when requested from an off-UI state-producer composition or a ViewModel coroutine scope — even with `withContext(Dispatchers.Main)` — most likely because the request fires before the UI window is active.
+
+When requesting an iOS permission at startup (not in response to a tap), trigger it from a `LaunchedEffect` in the `Screen` composable. Keep the permission manager in the ViewModel and call it via a suspend lambda exposed on the state, so the call originates from the UI composition.
+
+## Fixed Lazy List Edges: `contentPadding`, Not a Keyed Spacer
+For fixed spacing at the top/bottom of a `LazyColumn`/`LazyRow` (e.g. clearance for an overlay bar), use `contentPadding`, not a keyed `item("spacer") { Spacer(…) }`.
+
+Lazy layouts anchor scroll position by the key of the currently first-visible item. In a one-item loading state that's the spacer; when real items load in *before* it, the layout keeps that spacer key visible across recomposition — dragging the viewport to the bottom and opening the screen scrolled to the wrong edge. `contentPadding` is a layout constraint, not a keyed item, so it doesn't participate in scroll anchoring.
+
+```kotlin
+// GOOD
+LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) { … }
+
+// BAD - anchors scroll; snaps to the bottom when content loads in
+LazyColumn { …; item("bottom-spacer") { Spacer(Modifier.height(96.dp)) } }
+```
+
+Only use a real `Spacer` item when the gap is conditional on dynamic content position between sections.
+
+## iOS: Dismiss a Dialog Before Presenting a Native Modal
+On iOS, if a Compose `Dialog` is dismissed (via a state flip) **and** a native modal is presented (a file picker, mail composer, share sheet — any UIKit-modal-presenting API) in the same handler, the OS silently drops the second presentation because the dialog's dismiss animation (~250–300ms) is still in flight. The user sees a spinner forever; the suspending call never returns.
+
+Dismiss the dialog and set a processing flag synchronously (the flag closes the double-tap window), then wait out the dismiss animation before presenting:
+
+```kotlin
+onClick = {
+  Snapshot.withMutableSnapshot {
+    showDialog = false
+    isProcessing = true          // pre-arm so a fast second tap can't fire another modal
+  }
+  coroutineScope.launch {
+    delay(DIALOG_DISMISS_DELAY)   // ~350ms, a kotlin.time.Duration, not a Long
+    openFilePicker(...)           // or mail composer, share sheet, …
+  }
+}
+```
+
+A short DataStore/IO write (~50ms) is **not** a reliable substitute for the explicit delay — 50ms vs. 300ms still races intermittently. This is not a race when the handler dismisses a dialog *without* presenting a modal, presents a modal *without* dismissing a dialog, or opens an external app (the app loses foreground anyway).
+
+## One-Shot Effects Must Gate on Loaded Data, Not Just a Flag
+A one-shot effect (a preselect, an auto-action) driven by `collectAsState(initial = null)` has a guaranteed empty first frame. If the effect consumes its "done" flag on that frame, it matches nothing, sets `done = true`, and never retries once the real data arrives.
+
+Gate the effect on the source being loaded, not just on the flag:
+
+```kotlin
+// BAD - fires on the empty first frame, burns the flag, never retries
+var done by remember { mutableStateOf(false) }
+LaunchedEffect(items) { if (done) return@LaunchedEffect; preselect(items); done = true }
+
+// GOOD - the flag flips only once a real match was possible
+// `source` is the collectAsState(initial = null) value; `done` as in the BAD block
+var done by remember { mutableStateOf(false) }
+LaunchedEffect(items, source) {
+  if (done || source == null) return@LaunchedEffect
+  preselect(items); done = true
+}
+```
+
+## Key `remember {}` Caches on Their Derived Inputs
+A `remember {}` that caches a **derived** value (trimmed bytes, an encoded image, a resolved file, a mapped list) must be keyed on the inputs the derivation depends on: `remember(inputA, inputB) { … }`. An unkeyed `remember {}` is correct only while the cached value is input-independent — the day someone makes the source state-dependent, the unkeyed cache silently serves stale data with **no compile error and no test failure**.
+
+- When adding a cache, ask "what does this value actually depend on?" and put exactly those in the key.
+- When you change what a cached computation *reads*, re-audit every `remember {}` downstream of it.
+- Split caches so each is keyed on only its own inputs — don't bundle an input-dependent payload with an input-independent one in a single unkeyed holder.
+
+## Navigation Routes Carry Primitives Only
+An enum-typed property on a `@Serializable` navigation route crashes iOS at startup (blank screen) while Android works. Compose Multiplatform's navigation resolves enum `NavType`s via reflection that isn't available on Kotlin/Native (iOS); there `parseEnum()` returns `UNKNOWN` (JVM targets — Android, Desktop — work). Route patterns/args are generated **eagerly** when the graph is built, so the `NavHost` throws `IllegalArgumentException: … could not find any NavType …` on the first composition — even if nothing ever navigates to that route.
+
+Routes carry **primitives only** (`String`/`Int`/`Boolean`). For an enum-like param, pass a string id and map it back inside the feature module (with a fallback to the default). A custom `typeMap` `NavType` also works but is more code for no benefit.
 
 ## Resources
 For image formats, icon naming, and string resource conventions, see the `compose-resource-conventions` skill.

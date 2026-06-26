@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "coding-skills",
-  "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
+  "description": "Coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform, plus Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace)",
   "owner": {
     "name": "Necati Sözer"
   },
   "plugins": [
     {
       "name": "coding-skills",
-      "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
+      "description": "Coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform, plus Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace)",
       "source": "./",
       "category": "development"
     }

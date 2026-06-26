@@ -1,7 +1,7 @@
 {
   "name": "coding-skills",
-  "description": "Coding standards and best practices for Kotlin, Android, and Compose Multiplatform projects",
-  "version": "0.0.10",
+  "description": "Coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform, plus Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace)",
+  "version": "0.0.11",
   "author": {
     "name": "Necati Sözer"
   }

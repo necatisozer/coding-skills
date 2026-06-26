@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (and never relying on `.name` for persistence), value classes (including for API enum-like strings), interface delegation, annotations, Pair/Triple, list construction (`listOf`/`listOfNotNull`/`buildList`), wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure across `parametersOf`/factory boundaries, file naming, and where to put mappers.
+description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (and never relying on `.name` for persistence), value classes, interface delegation, annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---
@@ -25,12 +25,12 @@ When enabled, use Kotlin 2.3+ explicit backing fields instead of the `_foo` / `f
 
 ```kotlin
 // GOOD - explicit backing field
-val isMuted: StateFlow<Boolean>
+val isConnected: StateFlow<Boolean>
   field = MutableStateFlow(false)
 
 // BAD - underscore-prefixed backing field
-private val _isMuted = MutableStateFlow(false)
-val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
+private val _isConnected = MutableStateFlow(false)
+val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 ```
 
 ## Enum vs Sealed Interface
@@ -131,3 +131,96 @@ public actual object VendorConstants {
     get() = cocoapods.VendorFramework.VendorSdkSomeName!!
 }
 ```
+
+## Don't Add Domain Behavior to Stdlib Types
+Never add domain-specific extension functions to common/stdlib types (`String`, `Int`, collections). Model the concept as a `@JvmInline value class` and put the operation on it as a member.
+
+```kotlin
+// BAD - leaks a URL-joining concern onto every String in scope
+fun String.appendPath(path: String): String = ...
+
+// GOOD - a value class owns the behavior; a raw String can't be mistaken for it
+@JvmInline value class UrlPrefix(val value: String) {
+  fun resolve(path: String): String = ...
+}
+```
+
+Flow the wrapper type through the codebase, including as the field type on the owning `@Serializable` model — a `@Serializable @JvmInline value class` serializes inline as its wrapped value, so JSON keys are unchanged. (Distinct from the next rule: this one is about not extending *stdlib* types; the next is about not bloating data holders with *derived* helpers — a value class's own *defining* operation, like `resolve` here, rightly stays a member.)
+
+## Keep Classes Minimal — Derived Behavior as Extensions
+Data classes, value classes, response/DTO models, and UI state classes should hold only their primary data. Anything **derived** from that state — helper functions, computed convenience values — belongs **outside** the class body as a top-level extension function/property in the same file, not as a member.
+
+```kotlin
+// BAD - derived helper as a member bloats the data holder
+data class OrderResponse(val lines: List<Line>, val status: String) {
+  fun failedLineOrNull(): Line? = lines.firstOrNull { it.failed }
+}
+
+// GOOD - pure data holder; the derivation lives next to it
+data class OrderResponse(val lines: List<Line>, val status: String)
+
+internal fun OrderResponse.failedLineOrNull(): Line? = lines.firstOrNull { it.failed }
+```
+
+- **Match the member's effective visibility.** If a caller lives in another module, the extension must be `public` (no modifier) — `internal` only resolves same-module. The call site then needs an explicit `import <pkg>.<name>` (extension imports are per-symbol) unless caller and class share a package.
+- **Caveat — eager-cached hot-path vals may stay members.** An extension property has no backing field, so it recomputes on every access. A derived `val` that is effectively part of the type's primary data *and* read on a hot path (e.g. a palette's alpha-tint tokens, computed once at construction and read pervasively during composition) should stay a member val. Apply the convention to behavioral derivations on data holders, not to palette/token data.
+
+## Inject Dependencies Into a Class, Don't Thread Them Through Helpers
+If a top-level helper takes repository/manager dependencies as positional args, and callers have to inject those deps just to pass them through, convert the helper into a DI-injected class. Callers then inject the wrapper instead of the leaf deps.
+
+```kotlin
+// BAD - every caller injects the leaf deps just to forward them
+suspend fun submitOrder(orderRepository: OrderRepository, analytics: Analytics, cart: Cart): OrderId
+
+// GOOD - a class owns the deps; callers inject it (annotate per your DI container)
+@Inject @Singleton
+class OrderSubmitter(
+  private val orderRepository: OrderRepository,
+  private val analytics: Analytics,
+) {
+  suspend fun submit(cart: Cart): OrderId { ... }
+}
+```
+
+A class constructor-injected into a public class must itself be public, and so must the return types of its public methods (Kotlin's "public function exposes its internal parameter type" rule). Don't convert pure functions — extension utilities and pure transformations with no injectable dependency stay top-level.
+
+## Comments Describe Code on Its Own Terms
+Never reference an unrelated module, feature, or SDK by name in a file's comments or KDoc just because the code was modeled on it. When a file borrows a pattern from elsewhere, describe the *pattern* generically — not the other module's concrete type names.
+
+```kotlin
+// BAD - names another module's types; rots when that module changes
+// Built like the sync module's RemoteClient + ClientFactory pair.
+
+// GOOD - describes the pattern on its own terms
+// expect interface bridged to platform code via an expect factory function.
+```
+
+Cross-module references in comments couple unrelated domains, go stale when the other module changes, and confuse readers who have no reason to know its internals. A generic framework/convention reference is fine; a specific unrelated-feature type name is not.
+
+## Don't Fight the Formatter
+A formatter like ktfmt (Google style) actively reformats certain patterns; don't waste edits "simplifying" them, because the next format run reverts the change and churns the diff:
+
+- Single-statement `when` branches get braced: `is Foo -> doThing()` becomes `is Foo -> { doThing() }`.
+- `?.let { return it }` chains stay expanded across lines even when the body is one expression.
+
+These are formatter preferences, not simplification opportunities. What *can* be simplified safely (and survives formatting): extracting duplicated branches into helpers, inlining single-use locals, removing dead fields/params/imports, consolidating multi-line comments. When a reviewer flags a formatter-owned pattern, skip it with the rationale "formatter preference."
+
+## KMP `expect class` Is Constructor-less
+Declare `expect class` bodies **without a constructor**. Each `actual class` declares its own platform-specific primary constructor, where platform dependencies are injected, and is constructed only in per-platform DI providers (androidMain/iosMain) — never in commonMain.
+
+**Never add a constructor parameter to an `expect class`** (in this pattern). The actuals' implicit primary constructor then fails to pair with it, producing a compile error like `Declaration must be marked with 'actual'` at the actual's constructor. (Kotlin *does* allow an `expect class` constructor when every `actual` declares a matching `actual constructor` — but keeping the expect no-arg and injecting platform deps on the `actual` keeps them out of common code. Common auto-fix trap: adding an injected dependency to the `actual` and "helpfully" mirroring it onto the `expect`.)
+
+```kotlin
+// commonMain - no constructor
+expect class FileStore {
+  suspend fun save(bytes: ByteArray, name: String)
+}
+
+// androidMain - platform deps on the actual constructor only
+actual class FileStore(private val context: Context) {
+  actual suspend fun save(bytes: ByteArray, name: String) { ... }
+}
+// + a per-platform DI provider: fun provideFileStore(context: Context) = FileStore(context)
+```
+
+Also: don't move a per-platform provider that builds an `expect class` into commonMain — commonMain can't call the platform constructor (`Expected class … does not have default constructor`).
