@@ -44,3 +44,8 @@ return { tempNodeId: target.id }
 ```
 
 Then `get_screenshot(tempNodeId)` → curl the returned URL → encode. **Always delete the temp node afterward** with a second `use_figma` call: `(await figma.getNodeByIdAsync(tempNodeId)).remove()`. (The clone-and-rescale is needed because `get_screenshot` can't upscale past a node's natural size, the node-id regex rejects instance child paths like `I…;…`, and `exportAsync` base64 returned through `use_figma` gets truncated.)
+
+## Name Code Assets After Their Figma Components
+When creating a code asset (an `ImageVector`, drawable, or similar) that implements a Figma component, derive its name from the Figma component's name — e.g. `icon/back` → `Back`, `icon/expand-right` → `ExpandRight`, `swap-item` → `SwapItem`, `icon/home-filled` → `HomeFilled`. Don't invent a descriptive synonym (`ChevronLeft` for `icon/back`, `Loading` for `icon/spinner`): designers file bugs and discuss icons using the Figma names, and a synonym forces a mental mapping on every conversation and invites duplicate look-alike assets.
+
+Documented deviations are fine when the literal name can't work in code — identifiers can't start with a digit (`icon/3d-view`), the name collides with a framework symbol (`icon/image` vs a UI-framework `Image` function), or the Figma name carries a variant/state suffix (`icon/settings-default` → `Settings`). Deviate deliberately, not by habit — and when auditing, verify glyph identity by usage slot in the design (which instance sits where) or geometry, not by name similarity alone.
