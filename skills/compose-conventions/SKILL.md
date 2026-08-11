@@ -75,6 +75,31 @@ private fun MyComponent(modifier: Modifier = Modifier) {
 }
 ```
 
+## A Shared Component Is a Claim About the Design
+Before reusing **or** editing a composable that has more than one call site, verify it against the design node. Reaching for `AppAlertDialog`, `DialogPrimaryButton` or a shared card container asserts that this screen's design matches that component — **the reuse is the claim**, and it fails silently: nothing breaks the build, and the screen you have open still looks right.
+
+**Never bake one screen's design numbers into a shared skeleton.** A value read from a single design node belongs at that call site, or as a parameter whose default comes from the design-system component — never from one screen's instance. This is `## Component Padding` above, generalised from padding to every design-sourced number.
+
+```kotlin
+// BAD - one screen's node becomes every screen's padding
+@Composable
+fun AppAlertDialog(content: @Composable () -> Unit) {
+  Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { content() }
+}
+
+// GOOD - a default with a design-system source, overridable per instance
+@Composable
+fun AppAlertDialog(
+  contentPadding: PaddingValues = DefaultDialogContentPadding,
+  content: @Composable () -> Unit,
+) {
+  Column(Modifier.padding(contentPadding)) { content() }
+}
+```
+
+- **A number that differs across call sites is a parameter, not a constant.** `grep` the consumers before editing a shared component. A `DialogImage` defaulting to 56dp while three call sites pass 72 means one of the two is wrong.
+- **Divergence inside a component family is a finding, not a style nit.** Primary and secondary buttons at 52dp while destructive sits at 56dp means part of the set was inherited rather than read from the design.
+
 ## Minimum Interactive Component Size
 Material3 interactive components (`Surface(onClick = ...)`, `IconButton`, etc.) enforce a 48dp minimum interactive size via `LocalMinimumInteractiveComponentSize`. The component renders at its visible size but reserves a 48dp layout box, with invisible padding around it. This breaks pixel-perfect design matching:
 
@@ -121,6 +146,8 @@ LifecycleResumeEffect(Unit) {
 LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { player.play() }
 LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { player.pause() }
 ```
+
+Reach for `LifecycleEventEffect` only for genuinely one-sided work, e.g. refresh on every `ON_RESUME`. Beyond sharing locals, `onPauseOrDispose` / `onStopOrDispose` **also runs when the composable leaves the composition** — a conditional branch dropping it, a lazy item scrolled away, a dismissed dialog — which two separate event effects miss silently, leaving the player playing. (Navigating away is not one of them: the destination's `NavBackStackEntry` lifecycle does emit `ON_PAUSE`/`ON_STOP`.)
 
 ## UDF (Unidirectional Data Flow)
 State flows down, events flow up. UI event lambdas must be `() -> Unit` — never return data.

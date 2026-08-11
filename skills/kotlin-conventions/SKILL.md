@@ -65,6 +65,24 @@ enum class OrderStatus(val serialName: String) {
 analytics.log("status" to status.serialName)
 ```
 
+A rename is not the only way this breaks. **Obfuscation renames entries for you** — an R8/ProGuard release build can write or read a different string than the one the source was written against, so a debug build passes and the shipped one silently stops matching.
+
+**Read it back through a total lookup, never `valueOf`.** `valueOf` throws on any unknown string, and inside a `Flow` or state producer that exception kills whatever collects it. A downgrade to a build that predates a newer entry is enough to trigger it.
+
+```kotlin
+// BAD - throws on an unknown or older stored value
+val status = OrderStatus.valueOf(stored)
+
+// GOOD - total, null for anything unrecognised; add to the enum declared above
+companion object {
+  fun fromSerialName(value: String?) = entries.firstOrNull { it.serialName == value }
+}
+```
+
+**Return `null`, don't bake in a fallback.** A default inside the lookup hides the miss from every caller and makes an unrecognised value indistinguishable from a genuine one. Let the caller decide what an unknown value means — `?: Pending` at the one call site where that is actually the right answer, or a branch that reports the miss.
+
+When adding stable strings to an enum that already persists `.name`, spell the literals to match what a **non-obfuscated** build wrote, so those stored values keep resolving without a migration. Values an obfuscated release build wrote are per-build minified identifiers that no literal can match — ship a migration, or accept that they miss the lookup and reset.
+
 For kotlinx.serialization, use `@SerialName` to pin the JSON key — see the kotlin-serialization-conventions skill.
 
 ## Value Classes

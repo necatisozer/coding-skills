@@ -6,7 +6,7 @@ paths: "**/*.kt,**/*.webp,**/*.png,**/*.xml"
 ---
 
 ## Image Formats
-No SVG in Android/CMP compose resources. Use:
+No SVG or Android vector XML drawables in Android/CMP compose resources. Use:
 - **ImageVector** for simple icons (settings gear, arrows, navigation icons)
 - **Lossless WebP** for complex icons/UI assets with gradients and shadows
 - **Lossy WebP (80%)** for photos and large images
@@ -39,7 +39,7 @@ webpmux -info output.webp
 If `transparency` is absent from the `Features present:` line (e.g. it prints `No features present`), the alpha channel was lost and the asset will render with a visible opaque square backing. This usually means the wrong layer was exported (a parent frame with a fill) rather than the icon-only sub-node; re-export the transparent sub-node and re-encode.
 
 ## SVG → ImageVector
-Convert SVG path commands to Compose path commands and create `ImageVector`.
+Convert SVG path commands to Compose path commands and create `ImageVector`; the SVG file itself is an intermediate and never ships. A design-exported SVG's canvas is the glyph's bounding box, not the icon frame — **load the `figma-conventions` skill before converting one**, for the viewport, scale and translation arithmetic.
 
 ## Icon Naming
 Match design name, no `ic_` prefix. Create `ImageVector` via `by lazy`.
