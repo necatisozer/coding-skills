@@ -336,7 +336,7 @@ A `remember {}` that caches a **derived** value (trimmed bytes, an encoded image
 ## Navigation Routes Carry Primitives Only
 An enum-typed property on a `@Serializable` navigation route crashes iOS at startup (blank screen) while Android works. Compose Multiplatform's navigation resolves enum `NavType`s via reflection that isn't available on Kotlin/Native (iOS); there `parseEnum()` returns `UNKNOWN` (JVM targets — Android, Desktop — work). Route patterns/args are generated **eagerly** when the graph is built, so the `NavHost` throws `IllegalArgumentException: … could not find any NavType …` on the first composition — even if nothing ever navigates to that route.
 
-Routes carry **primitives only** (`String`/`Int`/`Boolean`). For an enum-like param, pass a string id and map it back inside the feature module (with a fallback to the default). A custom `typeMap` `NavType` also works but is more code for no benefit.
+Routes carry **primitives only** (`String`/`Int`/`Boolean`) — a value class wrapping one is no more resolvable than an enum. For an enum-like param, pass a string id and map it back inside the feature module (with a fallback to the default). A custom `typeMap` `NavType` also works but is more code for no benefit.
 
 ## Resources
 For image formats, icon naming, and string resource conventions, see the `compose-resource-conventions` skill.

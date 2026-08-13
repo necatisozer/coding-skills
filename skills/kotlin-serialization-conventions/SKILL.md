@@ -1,6 +1,6 @@
 ---
 name: kotlin-serialization-conventions
-description: Enforces kotlinx.serialization patterns when writing @Serializable data classes, JSON response/request models, or API enum-like fields. Prevents redundant defaults. Also covers throwing typed exceptions for required-but-nullable response fields, and avoiding speculative forward-compat (stray @JsonNames, dead default-null params).
+description: Enforces kotlinx.serialization patterns when writing @Serializable data classes, JSON response/request models, or enum-like fields (value classes, not enums, for anything serialized). Prevents redundant defaults. Also covers throwing typed exceptions for required-but-nullable response fields, and avoiding speculative forward-compat (stray @JsonNames, dead default-null params).
 user-invocable: false
 paths: "**/*.kt"
 ---
@@ -31,8 +31,8 @@ data class SearchRequest(
 )
 ```
 
-## Value Classes for API Enum-Like Fields
-Use `@JvmInline value class` instead of `enum class` for JSON fields with a set of known values. Define known values in a companion object. This allows unknown values from the API without breaking deserialization.
+## Value Classes for Serialized Enum-Like Fields
+A **new** enum-like field on a serialized model is a `@JvmInline value class`, not an `enum class`. Define the known values as constants in a companion object. An unknown value from the API (or one written by a newer build) then deserializes fine instead of throwing, and the wire string is decoupled from source identifiers that a rename or R8 can change.
 
 ```kotlin
 @JvmInline
@@ -45,6 +45,8 @@ value class SortOrder(val value: String) {
   }
 }
 ```
+
+This is a rule for new fields, not a mandate to rewrite working models — converting an **existing** enum with a stable `@SerialName` and a total lookup is a wide-blast-radius refactor best left alone. The same rule applies beyond JSON (DB columns, analytics properties, preferences); see the kotlin-conventions skill for that, for comparing against the constants, and for the exceptions.
 
 ## Typed Exceptions for Required-but-Nullable Response Fields
 If a response field is declared nullable but callers treat it as required, do **not** enforce it with `requireNotNull`/`require` — those throw `IllegalArgumentException`, a generic type that collapses into the catch-all bucket alongside decoder failures and programmer bugs. That makes backend contract violations invisible in telemetry, where the exception's `simpleName` is typically the classifier.
@@ -66,4 +68,4 @@ Match the wire format exactly; don't hedge against imagined future changes.
 - Write **one** `@SerialName` that matches the JSON spelling. No `@JsonNames` (and the `@OptIn`/import it drags in) for a snake_case/camelCase variant the backend has never sent. If the spelling actually changes later, a one-line annotation change at that moment costs the same.
 - When you delete the only producer of a value, delete the param/field/threading that received it too — don't leave a default-`null` route param or a dead field "for a future entry point" that isn't being designed now.
 
-Not speculative (these are fine): companion constants documenting known JSON values on a value class; `= emptyList()` on a non-nullable `List<T>` response field to tolerate a missing array. And **preserve wire-format types you've spoken before** even if the current client doesn't construct them — a request/response type that documents a real server contract is backward-compat, not speculation. The line: hedging a protocol you don't speak yet is speculative; preserving one you've spoken is correct.
+Not speculative (these are fine): companion constants on a value class documenting values that are actually written or read — a known JSON value, a persisted column value, an analytics property value — even before every one has a call site; `= emptyList()` on a non-nullable `List<T>` response field to tolerate a missing array. And **preserve wire-format types you've spoken before** even if the current client doesn't construct them — a request/response type that documents a real server contract is backward-compat, not speculation. The line: hedging a protocol you don't speak yet is speculative; preserving one you've spoken is correct.

@@ -13,9 +13,9 @@ A Claude Code plugin with coding-convention and workflow skills for Kotlin, Andr
 
 | Skill | Description |
 |---|---|
-| `kotlin-conventions` | File organization, idioms, type design, extensions vs. members, DI helpers, Duration/Instant APIs, expect/actual |
+| `kotlin-conventions` | File organization, idioms, type design, persisted enums → value classes, extensions vs. members, DI helpers, Duration/Instant APIs, expect/actual |
 | `kotlin-coroutines-conventions` | Coroutine safety, Flow patterns, runCatching, dispatcher injection, platform dispatch |
-| `kotlin-serialization-conventions` | kotlinx.serialization response/request models, value classes for API enums, typed boundary exceptions |
+| `kotlin-serialization-conventions` | kotlinx.serialization response/request models, value classes instead of serialized enums, typed boundary exceptions |
 | `compose-conventions` | Modifiers, state, lazy layouts, lifecycle/one-shot effects, shared components vs. design, navigation routes, iOS dialogs/permissions, UDF, insets |
 | `compose-resource-conventions` | Image formats, brand assets vs. glyphs, SVG → ImageVector sizing, icon naming/sizing, string resources, WebP encoding/alpha |
 | `android-conventions` | Platform API compatibility, runtime pitfalls |

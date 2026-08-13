@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (and never relying on `.name` for persistence), value classes, interface delegation, annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
+description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (persisted ones become value classes; never rely on `.name`), value classes, interface delegation, annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---
@@ -34,7 +34,7 @@ val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 ```
 
 ## Enum vs Sealed Interface
-Prefer `enum class` when all subtypes are singleton `data object`s with no properties. Use `sealed interface` (not `sealed class`) when subtypes carry different data.
+Prefer `enum class` when all subtypes are singleton `data object`s with no properties. Use `sealed interface` (not `sealed class`) when subtypes carry different data — including serialized ones, where polymorphic `@Serializable` handles it. Only the flat, no-properties case changes at a persistence boundary — see Don't Persist an Enum below.
 
 ```kotlin
 // GOOD - all entries are simple singletons
@@ -47,14 +47,37 @@ sealed interface Result {
 }
 ```
 
-## Never Rely on Enum `.name` for Persistence
-`Enum.name` returns the source-code identifier and changes the moment someone renames an entry. Never use it for analytics events/properties, serialization, wire formats, database storage, file paths, or anything else that outlives a build. Declare an explicit stable string per entry — a refactor of the entry name then can't silently break dashboards, payloads, or stored rows.
+## Don't Persist an Enum — Use a Value Class
+`enum class` is for values that never leave the process. **The moment a type crosses a persistence boundary — JSON, database column, analytics event/property, preferences, file path, anything that outlives a build — declare it as a `@JvmInline value class` with the known values as companion constants instead.** The stored string is then the value itself, not a source identifier, and an unknown value from a newer backend or an older build round-trips instead of throwing.
 
 ```kotlin
-// BAD - rename Failed → FailedRetryable silently breaks dashboards/stored rows
+// BAD - enum on the wire: rename or obfuscation breaks stored rows, unknown values throw
 enum class OrderStatus { Pending, Shipped, Delivered, Cancelled }
 analytics.log("status" to status.name)
 
+// GOOD - value class, known values as constants
+@JvmInline
+value class OrderStatus(val value: String) {
+  companion object {
+    val Pending = OrderStatus("pending")
+    val Shipped = OrderStatus("shipped")
+    val Delivered = OrderStatus("delivered")
+    val Cancelled = OrderStatus("cancelled")
+  }
+}
+analytics.log("status" to status.value)
+```
+
+Compare with `==` against the constants and give `when` an `else` branch — the set is open by construction, which is the point. Add `@Serializable` only in a module that has kotlinx.serialization; for the JSON side see the kotlin-serialization-conventions skill.
+
+**Converting an enum that already persisted values: match the strings already on disk.** Spell each constant the way a **non-obfuscated** build wrote it (`OrderStatus("Pending")`, not `"pending"`, if `.name` was what got stored) — otherwise every existing row stops matching on upgrade and silently resets. Values an obfuscated release build wrote are per-build minified identifiers no literal can match; ship a migration, or accept that they miss and reset.
+
+**One exception — Compose Multiplatform navigation route arguments**, which take neither an enum nor a value class; see "Navigation Routes Carry Primitives Only" in the compose-conventions skill.
+
+## Enums You're Not Converting: Never Persist `.name`
+Migrating isn't always worth it — an enum with a stable serial name and a total lookup is acceptable, and converting one is a wide-blast-radius refactor (every exhaustive `when` grows an `else`) that shouldn't ride along with unrelated work. Then, at minimum, declare an explicit stable string per entry and persist that, never `.name`.
+
+```kotlin
 // GOOD - explicit serial name decouples source identifier from persisted string
 enum class OrderStatus(val serialName: String) {
   Pending("pending"),
@@ -64,8 +87,6 @@ enum class OrderStatus(val serialName: String) {
 }
 analytics.log("status" to status.serialName)
 ```
-
-A rename is not the only way this breaks. **Obfuscation renames entries for you** — an R8/ProGuard release build can write or read a different string than the one the source was written against, so a debug build passes and the shipped one silently stops matching.
 
 **Read it back through a total lookup, never `valueOf`.** `valueOf` throws on any unknown string, and inside a `Flow` or state producer that exception kills whatever collects it. A downgrade to a build that predates a newer entry is enough to trigger it.
 
@@ -81,12 +102,10 @@ companion object {
 
 **Return `null`, don't bake in a fallback.** A default inside the lookup hides the miss from every caller and makes an unrecognised value indistinguishable from a genuine one. Let the caller decide what an unknown value means — `?: Pending` at the one call site where that is actually the right answer, or a branch that reports the miss.
 
-When adding stable strings to an enum that already persists `.name`, spell the literals to match what a **non-obfuscated** build wrote, so those stored values keep resolving without a migration. Values an obfuscated release build wrote are per-build minified identifiers that no literal can match — ship a migration, or accept that they miss the lookup and reset.
-
-For kotlinx.serialization, use `@SerialName` to pin the JSON key — see the kotlin-serialization-conventions skill.
+Adding stable strings to an enum that already persists `.name` has the same matching problem as converting one — spell the literals to match what a non-obfuscated build wrote, or migrate. For kotlinx.serialization, use `@SerialName` to pin the JSON key; see the kotlin-serialization-conventions skill.
 
 ## Value Classes
-Use `@JvmInline value class` instead of `data class` for single-property wrappers (identifiers, typed strings).
+Use `@JvmInline value class` instead of `data class` for single-property wrappers (identifiers, typed strings) — and instead of `enum class` for persisted values, above.
 
 ## Interface Delegation
 Use Kotlin's `by` keyword instead of manually forwarding methods.
