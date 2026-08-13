@@ -26,15 +26,3 @@ A Claude Code plugin with coding-convention and workflow skills for Kotlin, Andr
 | `figma-conventions` | Token resolution, never authoring design values, icon frame vs. SVG bbox, render-verifying, hi-res asset export, recovering transparent layers |
 | `slack-conventions` | Slack message formatting for MCP tools |
 | `gws-conventions` | Google Workspace CLI usage |
-
-## Releasing
-
-Bump `version` in `.claude-plugin/plugin.json` — it is the single source of truth.
-`.claude-plugin/marketplace.json` is synced from it by `scripts/sync-version.py`,
-which the `.githooks/pre-commit` hook runs automatically.
-
-After a fresh clone, point git at the hooks once:
-
-```
-git config core.hooksPath .githooks
-```
