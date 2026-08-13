@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (persisted ones become value classes; never rely on `.name`), value classes, interface delegation (including sharing a capability by delegation instead of an abstract base class), annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
+description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (persisted ones become value classes; never rely on `.name`), value classes, interface delegation (including `by` instead of an abstract base class), annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---
@@ -120,31 +120,36 @@ class LoggingRepository(private val delegate: Repository) : Repository by delega
 ## Share a Capability by Delegation, Not a Base Class
 When several classes need the same small piece of state or behavior, publish it as an interface with one implementation class and mix it in with `by`. Reach for an abstract base class only when the shared thing is the class's whole identity.
 
-An abstract base spends the single inheritance slot, which is already taken whenever the class extends a framework type (`ViewModel`, `Fragment`, a platform controller). It also forces every consumer to name the base class rather than the capability, so a screen or test cannot depend on the small contract alone.
-
 ```kotlin
 // GOOD - capability as an interface, one implementation, mixed in
-interface RefreshTrigger {
-  val refreshes: SharedFlow<Unit>
-  fun requestRefresh()
+interface SelectionTracker {
+  val selectedIds: Set<String>
+  fun toggle(id: String)
 }
 
-class RefreshTriggerState : RefreshTrigger { /* the only implementation */ }
+class SelectionState : SelectionTracker {
+  override var selectedIds: Set<String> = emptySet()
+    private set
 
-class ListViewModel(...) : ViewModel(), RefreshTrigger by RefreshTriggerState()
+  override fun toggle(id: String) {
+    selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+  }
+}
 
-// Consumers depend on the capability, not on the class that happens to hold it
-fun observe(trigger: RefreshTrigger) { /* ... */ }
+// Two capabilities and a framework base, side by side. UndoHistory is declared the same way.
+class GalleryViewModel :
+  ViewModel(), SelectionTracker by SelectionState(), UndoHistory by UndoState()
 
-// BAD - base class competes for the inheritance slot and leaks into every signature
-abstract class RefreshableViewModel : ViewModel() {
-  private val _refreshes = MutableSharedFlow<Unit>()
-  val refreshes: SharedFlow<Unit> = _refreshes.asSharedFlow()
-  fun requestRefresh() { /* ... */ }
+// BAD - only one capability can be the base, and it has to extend ViewModel to be usable
+abstract class SelectableViewModel : ViewModel() {
+  var selectedIds: Set<String> = emptySet()
+    private set
+
+  fun toggle(id: String) { /* ... */ }
 }
 ```
 
-Keep the implementation class separate from the interface rather than making it an `object`: each owner needs its own state, and `by` needs an instance.
+A class extends exactly one thing, so the second capability has nowhere to go, and the base has to extend whatever framework type its subclasses need — welding the two together. The base also forces every consumer to name it rather than the capability they actually depend on, so nothing can ask for `SelectionTracker` alone. Make the implementation a class, not an `object`: each owner needs its own state.
 
 ## Throw Instead of Result Types
 For simple success/failure operations, throw exceptions instead of wrapping return types in `Result`, `Either`, or custom sealed classes when there are only two outcomes.
