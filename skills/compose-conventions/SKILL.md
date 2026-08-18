@@ -1,6 +1,6 @@
 ---
 name: compose-conventions
-description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, lazy-layout keys, iOS system permission dialogs, navigation route argument types, dismissing a Dialog before presenting a native modal, one-shot preselect effects, and keyed remember caches.
+description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, lazy-layout keys and item animation, iOS system permission dialogs, navigation route argument types, dismissing a Dialog before presenting a native modal, one-shot preselect effects, and keyed remember caches.
 user-invocable: false
 paths: "**/*.kt"
 ---
@@ -123,13 +123,22 @@ Surface(onClick = onClick, shape = shape) {
 }
 ```
 
-## Lazy Layout Keys
-Provide `key` to lazy layout items for performance. Ensure keys are unique — use `distinctBy` to filter duplicates before passing to `items(key = ...)`, as duplicate keys crash the app.
+## Lazy Layout Keys and Item Animation
+Every `LazyColumn` / `LazyRow` / `LazyVerticalGrid` item gets `key = { it.id }` **and** `Modifier.animateItem()`, unless the caller explicitly wants no animation. Reordering, insertion and removal should animate by default.
+
+Duplicate keys crash the app, so guard them — but guard them in the right place:
+
+- **If duplicates are legitimately expected**, mint a genuinely unique key instead: compose it from the fields that differ, add an index, etc. Don't drop real rows.
+- **Otherwise**, filter duplicates out **before the list reaches the list state** — in the ViewModel or state builder, not inline at the `items(...)` call. Filtering at the call site hides the problem from every other consumer of that state and leaves the crash one refactor away.
 
 ```kotlin
-// GOOD
-val uniqueItems = allItems.distinctBy { it.id }
-items(uniqueItems, key = { it.id }) { item -> ... }
+// GOOD - keyed and animated; the list arrives already de-duplicated
+items(state.items, key = { it.id }) { item ->
+  ItemRow(item = item, modifier = Modifier.animateItem())
+}
+
+// BAD - dedupe hidden at the call site, no item animation
+items(allItems.distinctBy { it.id }, key = { it.id }) { item -> ItemRow(item = item) }
 ```
 
 ## Lifecycle Effects

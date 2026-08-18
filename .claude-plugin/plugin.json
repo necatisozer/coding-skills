@@ -1,7 +1,7 @@
 {
   "name": "coding-skills",
   "description": "Coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform, plus Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace)",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "author": {
     "name": "Necati S\u00f6zer"
   }
