@@ -1,6 +1,6 @@
 # Coding Skills
 
-A Claude Code plugin with coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform — plus Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace).
+A Claude Code plugin with coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform — plus physical iOS device testing, Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace).
 
 ## Installation
 
@@ -19,6 +19,7 @@ A Claude Code plugin with coding-convention and workflow skills for Kotlin, Andr
 | `compose-conventions` | Modifiers, state, lazy layouts, lifecycle/one-shot effects, shared components vs. design, navigation routes, iOS dialogs/permissions, UDF, insets |
 | `compose-resource-conventions` | Image formats, brand assets vs. glyphs, SVG → ImageVector sizing, icon naming/sizing, string resources, WebP encoding/alpha |
 | `android-conventions` | Platform API compatibility, runtime pitfalls |
+| `ios-device-conventions` | Physical iOS device work from the CLI: devicectl, logs and crash reports, WebDriverAgent driving and runner signing, frame measurement, network capture, StoreKit sandbox |
 | `gradle-conventions` | Verifying Gradle builds, CMP iOS resource staleness |
 | `git-conventions` | Git stash/pathspec gotchas, binary patches |
 | `code-editing-conventions` | Propagating fixes to sibling sites, leaving TODO/placeholder config alone |
