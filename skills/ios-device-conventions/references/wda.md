@@ -80,4 +80,17 @@ pymobiledevice3 usbmux forward 9100 9100 &
 open http://localhost:9100
 ```
 
-Tune it per session through `appium/settings` (`mjpegServerFramerate`, `mjpegServerScreenshotQuality`, `mjpegScalingFactor` — wrapped, as above). Transcoding to H.264/WebRTC/RTSP (ffmpeg → mediamtx) only pays off when another client needs those protocols; over USB to localhost it is pure overhead.
+Tune it per session through `appium/settings` (`mjpegServerFramerate`, `mjpegServerScreenshotQuality`, `mjpegScalingFactor` — wrapped, as above). They reset with every new WDA session; re-apply them each time. Everything rides the USB cable, so this works with the phone in airplane mode.
+
+### Relaying to Other Players
+Transcoding to H.264 only pays off when a player needs WebRTC, HLS or RTSP; for a browser on the same Mac the MJPEG page above is cheaper. When it is needed, publish into a media server such as mediamtx:
+
+```bash
+ffmpeg -f mjpeg -use_wallclock_as_timestamps 1 -i http://localhost:9100 \
+  -c:v libx264 -preset veryfast -tune zerolatency -r 30 -g 30 -b:v 4000k -pix_fmt yuv420p \
+  -f rtsp -rtsp_transport tcp rtsp://localhost:8554/<path>
+```
+
+- `-use_wallclock_as_timestamps 1` because MJPEG carries no timestamps; `-g` equal to the frame rate so a player joining mid-stream gets a keyframe within a second.
+- **Bind the media server to loopback, turn off every protocol no player uses, and verify with `lsof -nP -a -p <pid> -i` that nothing listens on `*`.** Otherwise anyone on the network can watch the phone, purchase sheets and test accounts included. Stock configs rarely do this: mediamtx's listens on every interface and enables RTMP, SRT, MoQ and RTSP over UDP. There it takes each `*Address` set to `127.0.0.1:<port>`, `rtspTransports: [tcp]`, `webrtcLocalUDPAddress: 127.0.0.1:8189`, and `webrtcIPsFromInterfaces: false` with `webrtcAdditionalHosts: [127.0.0.1]`.
+- Run it on demand and stop the forwarder, ffmpeg and the server afterwards — never as a login item.

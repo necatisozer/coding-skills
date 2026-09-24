@@ -11,7 +11,7 @@ Two shell rules every snippet depends on:
 - Quote every argument containing `?`, `*` or `[...]` — URLs with query strings, `--include` patterns, bracketed API parameters. In zsh an unmatched glob aborts the whole command with `no matches found` before the program runs, which reads like a legitimate empty result.
 
 Detail lives in reference files; load the one you need:
-- `references/wda.md` — starting the WDA server, a dead runner, signing the runner, driving gotchas, watching the screen
+- `references/wda.md` — starting the WDA server, a dead runner, signing the runner, driving gotchas, watching and relaying the screen
 - `references/measuring-frames.md` — jank/freeze measurement: 60fps XCTest recording, MJPEG, camera roll, GPU counters
 - `references/network-capture.md` — mitmproxy against a device, and the StoreKit-pinning trap
 - `references/storekit-sandbox.md` — sandbox testers, App Store Connect API and JWT signing, intro-offer and storefront traps
@@ -80,10 +80,10 @@ curl -s http://localhost:8100/status
 - Taps and swipes are W3C actions at `POST /session/<id>/actions`. `GET /source?format=json` returns the accessibility tree with every rect **already in points** — measure layout from rects, not from screenshot pixels.
 - **Confirm what is on screen before acting on it.** Before any tap, and before trusting a label search or a capture, check in the current tree which app is in front and which screen it's on, using a label only that screen has. The foreground can change under you — another session, an app switch, the lock screen, a consent sheet — and a stale coordinate lands on another app's control. Locate targets by label and recompute geometry from the current tree.
 - **Never enter a password, passcode or any other credential through automation.** Drive up to the prompt, hand it to the human, then carry on.
-- **Never expose 8100 (or the MJPEG port 9100) beyond localhost.** WDA has no authentication: anything that can reach the port can screenshot, read and drive the phone. The legacy `iproxy 8100 8100` form binds every interface; the `pymobiledevice3` forwarder binds loopback by default.
+- **Never expose 8100 (or the MJPEG port 9100) beyond localhost** — or any relay of the screen. WDA has no authentication: anything that can reach the port can screenshot, read and drive the phone. The legacy `iproxy 8100 8100` form binds every interface; the `pymobiledevice3` forwarder binds loopback by default.
 - **Check ownership before claiming the device.** If `/status` answers, something is already driving the phone. Find the owner with `pgrep -fl "xcuitest|xcodebuild"` — the fastest start route leaves a `pymobiledevice3 … dvt xcuitest` process, so grepping for `xcodebuild` alone reports a busy device as free. Ask the owning session before interrupting, and ask again each time: permission to interrupt describes the moment it was given, not the next ten minutes.
 
-Starting from source, a dead runner, signing, and driving gotchas: `references/wda.md`.
+Starting from source, a dead runner, signing, driving gotchas, and watching or relaying the screen: `references/wda.md`.
 
 ## Measure Frames Instead of Reasoning About Jank
 For "it stutters / freezes / snaps", record and measure. Default to WDA's native XCTest recording (`/wda/video`, ~60fps at native resolution, scriptable), and read **inter-frame timestamp gaps**, never `avg_frame_rate` — the recorder emits no frames while the screen is static, so a gap *is* a freeze. Full recipe and the other capture tiers: `references/measuring-frames.md`.
