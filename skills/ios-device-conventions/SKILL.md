@@ -4,7 +4,7 @@ description: Use when working with a physical iOS device from the command line �
 user-invocable: false
 ---
 
-Machine-specific values — device UDID, team id, the WDA runner id, profile name, sandbox tester accounts — are deliberately not in this skill. Look for them in the user's own `CLAUDE.md` before running anything below.
+Machine-specific values — device UDID, team id, the WDA runner id, profile name, sandbox tester accounts — are deliberately not in this skill. Look for them in the user's own instructions before running anything below, and ask when they are missing.
 
 Two shell rules every snippet depends on:
 - `pip install --user` leaves `pymobiledevice3` off PATH. Snippets write it bare; call `~/Library/Python/<ver>/bin/pymobiledevice3` or `/usr/bin/python3 -m pymobiledevice3`. Bare `python3 -m` may resolve to Homebrew's Python and fail with `No module named pymobiledevice3`.
