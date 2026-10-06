@@ -1,6 +1,6 @@
 # Coding Skills
 
-A Claude Code plugin with coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform — plus physical iOS device testing, Git, Gradle, and common tooling (Jira, Slack, Figma, Google Workspace).
+A Claude Code plugin with coding-convention and workflow skills for Kotlin, Android, and Compose Multiplatform — plus physical iOS device testing, Git, Gradle, and common tooling (Slack, Figma, Google Workspace).
 
 ## Installation
 
@@ -23,7 +23,6 @@ A Claude Code plugin with coding-convention and workflow skills for Kotlin, Andr
 | `gradle-conventions` | Verifying Gradle builds, CMP iOS resource staleness |
 | `git-conventions` | Git stash/pathspec gotchas, binary patches |
 | `code-editing-conventions` | Propagating fixes to sibling sites, leaving TODO/placeholder config alone |
-| `jira-conventions` | Jira issue handling with comment fetching |
 | `figma-conventions` | Token resolution, never authoring design values, icon frame vs. SVG bbox, render-verifying, hi-res asset export, recovering transparent layers |
 | `slack-conventions` | Slack message formatting for MCP tools |
 | `gws-conventions` | Google Workspace CLI usage |
