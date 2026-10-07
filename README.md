@@ -18,8 +18,8 @@ A Claude Code plugin with coding-convention and workflow skills for Kotlin, Andr
 | `kotlin-serialization-conventions` | kotlinx.serialization response/request models, value classes instead of serialized enums, typed boundary exceptions |
 | `compose-conventions` | Modifiers, state, lazy layouts, lifecycle/one-shot effects, shared components vs. design, navigation routes, iOS dialogs/permissions, UDF, insets |
 | `compose-resource-conventions` | Image formats, brand assets vs. glyphs, SVG → ImageVector sizing, icon naming/sizing, string resources, WebP encoding/alpha |
-| `compose-effect-testing` | Driving a `@Composable` effect from `commonTest` with molecule: recomposition mode, snapshot notifications, virtual time, Android host test setup |
-| `android-conventions` | Platform API compatibility, runtime pitfalls |
+| `compose-effect-testing` | In projects that use molecule, driving a `@Composable` effect from `commonTest`: recomposition mode, snapshot notifications, virtual time |
+| `android-conventions` | Platform API compatibility, runtime pitfalls, Compose code in Android host tests |
 | `ios-device-conventions` | Physical iOS device work from the CLI: devicectl, logs and crash reports, WebDriverAgent driving and runner signing, frame measurement, network capture, StoreKit sandbox |
 | `gradle-conventions` | Verifying Gradle builds, CMP iOS resource staleness |
 | `git-conventions` | Git stash/pathspec gotchas, binary patches |
