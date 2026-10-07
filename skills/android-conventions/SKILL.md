@@ -1,6 +1,6 @@
 ---
 name: android-conventions
-description: "Enforces Android platform rules when using MutableList, updating compileSdk, targeting API 35+, or running Compose code in Android host (unit) tests. Prevents runtime NoSuchMethodError from removeFirst/removeLast, and host tests that throw \"not mocked\" on every composition."
+description: Enforces Android platform rules when using MutableList, updating compileSdk, targeting API 35+, or running Compose code in Android host (unit) tests. Prevents runtime NoSuchMethodError from removeFirst/removeLast, and host tests that fail with not-mocked errors on every composition.
 user-invocable: false
 paths: "**/*.kt,**/*.kts,**/*.java"
 ---
