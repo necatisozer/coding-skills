@@ -69,8 +69,12 @@ PRODUCT_BUNDLE_IDENTIFIER = $(WDA_BID_$(TARGET_NAME):default=$(inherited))
 - **A W3C drag that starts on a tappable element fires its `onClick`** — once, that started a paid action. Start drags on inert areas.
 - **Empty accessibility labels:** off-screen Compose content often has none, so judge by geometry — after confirming you are reading the right app's tree (SKILL.md › confirm what is on screen); a zero-hit search against the wrong app looks exactly like "unlabelled".
 - **Keep synthetic tap presses short** — tens of milliseconds. A longer press can be classified as a long-press or drag: a map view dropped an 80 ms press that a 40 ms one landed.
-- **Out-of-process pickers** (PHPicker and the like) ignore synthetic taps until `appium/settings {"settings":{"defaultActiveApplication":"auto"}}`.
+- **Out-of-process pickers** (PHPicker and the like) ignore synthetic taps until `appium/settings {"settings":{"defaultActiveApplication":"auto"}}`. With the same setting, the share sheet's cells (AirDrop, Copy, Mail) appear in `/source` too.
+- **Send each tap in its own `/actions` call.** Two taps chained in one call replay wrong: on a keypad, `1` then `2` produced `211` or `212` instead of `12`.
 - **Lock screen:** a tree with a blank app name and Flashlight/Camera buttons. `POST /session/<id>/wda/unlock` wakes and swipes when no passcode is set.
+- **Press, hold, then drag:** `POST /session/<sid>/wda/dragfromtoforduration` with `{"fromX","fromY","toX","toY","duration"}` presses at the start point for `duration` seconds, then drags. UI that exists only while the finger is down is gone from a later screenshot, so watch it through MJPEG.
+- **Background and re-foreground the app:** `POST /session/<sid>/wda/deactivateApp {"duration": <s>}` goes to the home screen, waits `duration` seconds, then activates the app again. `/wda/apps/launch` on an app that already runs only activates it, so it does not give a real background period.
+- **System alerts** (permission and tracking prompts) belong to SpringBoard, not to the app. Read one with `GET /session/<sid>/alert/text` and answer with `POST …/alert/accept` or `…/alert/dismiss`. To answer every alert the same way, set `defaultAlertAction` (`accept` or `dismiss`) through `appium/settings`.
 
 ## Watching the Screen
 The runner's MJPEG server (port 9100) serves `multipart/x-mixed-replace` with `image/jpeg` parts, which any browser renders natively:

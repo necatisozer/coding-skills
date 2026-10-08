@@ -19,4 +19,6 @@ list.removeAt(list.lastIndex)
 ```
 
 ## Android Host Tests That Run Compose Code Need `isReturnDefaultValues = true`
+In a module on the KMP `androidLibrary {}` plugin, host tests run with `testAndroidHostTest`, not `testDebugUnitTest` (gradle-conventions › references/kmp-and-tooling.md).
+
 Without it, the Compose runtime's `android.os.Trace.beginSection` throws "not mocked" on *every* composition. The report blames `android.util.Log`, but that is only the second throw, raised while it logs the first. The iOS simulator target has neither problem, so a green iOS run proves nothing about Android. Run both.

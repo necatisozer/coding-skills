@@ -11,6 +11,7 @@
 ## Traps
 - **`isEligibleForIntroOffer` answers for the subscription *group*, not the product.** A product with no introductory offer still reports `true` when the account is eligible within the group — reading `false` as "this product has no offer" is a wrong diagnosis.
 - **A tester's territory is editable**, the way to test per-territory pricing without new accounts — but **the device keeps serving the old storefront until the sandbox account is signed out and back in.** Reinstalling is not enough. Sign-out can be automated; sign-in cannot.
+- **Sandbox subscriptions run on a fast clock.** By default 1 month is 5 minutes (1 week is 3 minutes, 1 year is 1 hour), and auto-renewal stops after 12 renewals. A test that spans several minutes can cross a renewal or an expiry, so read the entitlement again before you judge a result. TestFlight builds renew daily instead, up to 6 times.
 - **Testers are shared test state.** Ask before clearing anyone's purchase history or changing a territory, and put a changed territory back.
 
 ## App Store Connect API

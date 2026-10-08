@@ -1,6 +1,6 @@
 ---
 name: gradle-conventions
-description: Use when running or verifying Gradle builds — capturing pass/fail correctly from a gradle invocation (shell pipe exit-code masking), and the Kotlin Multiplatform iOS resource pipeline serving stale composeResources content after a content-only edit. Prevents false "build passed" claims and shipping stale iOS resources.
+description: Use when running or verifying Gradle builds — capturing pass/fail correctly from a gradle invocation (shell pipe exit-code masking), and the Kotlin Multiplatform iOS resource pipeline serving stale composeResources content after a content-only edit. Also covers KMP iOS build pitfalls (partial linkage after a library bump, CocoaPods, SwiftPM import) and Gradle tooling (daemon JVM, IDE sync, mavenLocal, dependency updates). Prevents false "build passed" claims and shipping stale iOS resources.
 user-invocable: false
 ---
 
@@ -30,3 +30,10 @@ PLATFORM_NAME=iphonesimulator ARCHS=arm64 CONFIGURATION=Debug ./gradlew :<framew
 ```
 
 (`syncFramework` infers the target arch from the `PLATFORM_NAME`/`ARCHS`/`CONFIGURATION` env vars — without them it fails late on arch inference. `<module>` is whichever module owns the changed composeResources; `<framework-module>` must depend on it so the synced framework picks up the refreshed bytes.) Then verify the new bytes actually landed — grep the edited file inside the framework's synced `compose-resources/` directory before trusting any iOS build.
+
+## KMP and Gradle Tooling Pitfalls
+Read `references/kmp-and-tooling.md` when the task touches one of these:
+
+- **A library bump in a KMP project.** Kotlin/Native partial linkage turns a missing symbol into a runtime `IrLinkageError` on iOS, so link the iOS framework too and read the partial-linkage warnings.
+- **CocoaPods or the SwiftPM import**, such as a raw `pod install` after a `clean`, or a "has been modified since the module file" error.
+- **Gradle tooling**: the daemon JVM, host tests in the KMP `androidLibrary` plugin, an IDE sync that fails while the CLI build passes, `mavenLocal` iteration, and the dependency updates report.

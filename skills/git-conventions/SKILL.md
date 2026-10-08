@@ -1,6 +1,6 @@
 ---
 name: git-conventions
-description: Use when running git commands that touch a subset of changes — git stash push with a pathspec while the index has staged-added (new) files, or generating/applying patches that include binary files. Prevents stashes that silently capture every staged-add and binary patches that fail to apply.
+description: Use when running git commands that touch a subset of changes — git stash push with a pathspec while the index has staged-added (new) files, or generating/applying patches that include binary files. Also covers stacked pull requests with `gh stack`. Prevents stashes that silently capture every staged-add and binary patches that fail to apply.
 user-invocable: false
 ---
 
@@ -23,3 +23,11 @@ When the index contains staged-adds and you need to stash only a subset, don't t
 
 ## Binary Patches Need `--binary`
 When generating a patch that includes binary files (images, fonts, compiled assets), use `git diff --binary`. A plain `git diff` patch fails to apply with `cannot apply binary patch to '<file>' without full index line`.
+
+## Stacked Pull Requests with `gh stack`
+`gh stack` (the `github/gh-stack` extension) manages a chain of branches with one PR each: `gh stack init`, `add`, `submit`, `sync`, and `merge --squash`.
+
+- **A draft PR blocks the merge.** `gh stack merge` checks only that each PR is open and not a draft. Run `gh pr ready <n>` for every PR in the stack first.
+- **The merge is atomic.** If any PR cannot be merged, none is merged.
+- `gh stack submit --auto` creates new PRs as drafts unless you pass `--open`.
+- Without the extension, rebase each child branch onto its new parent with `git rebase --onto <new-parent> <old-parent-sha>`. Stop at the first failed rebase. Do not let a script continue to the next branch.
