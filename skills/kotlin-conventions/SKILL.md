@@ -1,6 +1,6 @@
 ---
 name: kotlin-conventions
-description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (persisted ones become value classes; never rely on `.name`), value classes, interface delegation (including `by` instead of an abstract base class), annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, and `expect`/`actual` class constructors.
+description: Use when writing or modifying any Kotlin code — data classes, sealed interfaces/classes, enums (persisted ones become value classes; never rely on `.name`), value classes, interface delegation (including `by` instead of an abstract base class), annotations, `Pair` construction, list construction (`List(size) { }` vs `mapIndexed`), explicit backing fields (`-Xexplicit-backing-fields`) vs the `_foo`/`foo` pattern, wildcard or unused imports, `throw` vs `Result<T>` for error handling, `kotlin.time` Duration/Instant APIs, KMP native-SDK wrappers, Kotlin/Native generic type erasure of same-typed parameters at the iOS boundary, file naming, where to put mappers, extension functions on stdlib types, derived members vs. top-level extensions, DI-injected helper classes, code comments that reference other modules, formatter (ktfmt) preferences, NSLog from Kotlin/Native, and `expect`/`actual` class constructors.
 user-invocable: false
 paths: "**/*.kt,**/*.kts"
 ---
@@ -172,6 +172,9 @@ fun process(names: List<String>, ids: List<Int>)
 @JvmInline value class Ids(val value: List<Int>)
 fun process(names: Names, ids: Ids)
 ```
+
+## `NSLog` with a Kotlin `String` (Kotlin/Native)
+`NSLog("%@", kotlinString)` crashes the app (`EXC_BREAKPOINT` inside `_NSLogv`), because the variadic call does not pass the Kotlin `String` as an Objective-C object. Pass one string as the format, with `%` escaped: `NSLog(message.replace("%", "%%"))`.
 
 ## Native SDK Wrappers (KMP)
 When wrapping a platform SDK in `commonMain` with `expect`/`actual`:

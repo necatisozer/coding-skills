@@ -1,13 +1,15 @@
 ---
 name: figma-conventions
-description: Use whenever working with Figma — implementing UI from a Figma URL or design, calling any Figma MCP tool (get_design_context, get_screenshot, get_metadata, get_variable_defs, use_figma), translating designs to code, picking colors/typography/spacing from a design, exporting assets, or verifying a screen against Figma. Covers resolving tokens from the actual node, never authoring an icon/colour/size/spacing that isn't in the design node, converting an exported SVG into an ImageVector sized to the design's icon frame, render-verifying before specing, high-res asset export, and recovering transparent per-layer exports.
+description: Use whenever working with Figma — implementing UI from a Figma URL or design, calling any Figma MCP tool (get_design_context, get_screenshot, get_metadata, get_variable_defs, use_figma), translating designs to code, picking colors/typography/spacing from a design, exporting assets, or verifying a screen against Figma. Covers resolving tokens from the actual node, reading variables through the MCP (the REST variables API is Enterprise-only), never authoring an icon/colour/size/spacing that isn't in the design node, converting an exported SVG into an ImageVector sized to the design's icon frame, render-verifying before specing, high-res asset export, and recovering transparent per-layer exports.
 user-invocable: false
 ---
 
 ## Resolve Tokens from the Node, Not the Catalog
 Always resolve the actual design token instead of guessing theme values from rendered hex colors.
 
-`get_variable_defs` returns the file's **whole token catalog** (every surface tier, every type style) — it does not tell you which token a *specific* container uses. For the color/typography of a given element, pull `get_design_context` on that element's node and read the exact token it references — e.g. a `bg-[var(--surface-elevated,rgba(...))]` line, or the exact font + weight + size. Visually similar shades on a dark background are easy to confuse; the design tokens are the authoritative spec.
+`get_variable_defs` returns every variable used **anywhere under the node** you pass, so it does not tell you which token a *specific* container uses. For the color/typography of a given element, pull `get_design_context` on that element's node and read the exact token it references — e.g. a `bg-[var(--surface-elevated,rgba(...))]` line, or the exact font + weight + size. Visually similar shades on a dark background are easy to confuse; the design tokens are the authoritative spec.
+
+**Read variables through the MCP, not the REST API.** The REST variables endpoints (`GET /v1/files/:key/variables/local`) work only for full members of an Enterprise organization, and other plans get a 403. Pass `get_variable_defs` a layer id, such as a frame: a page id fails with "You currently have nothing selected". `get_metadata` on the page lists its frames.
 
 **A design token does not map to the app theme token of the same name.** Check the app token's actual value before substituting it — a design's `text/primary` at `#121212` and an app `textPrimary` at `#0D0D0D` are not the same colour.
 

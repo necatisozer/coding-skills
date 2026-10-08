@@ -1,6 +1,6 @@
 ---
 name: compose-conventions
-description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, lazy-layout keys and item animation, iOS system permission dialogs, navigation route argument types, dismissing a Dialog before presenting a native modal, one-shot preselect effects, and keyed remember caches.
+description: Use when writing or modifying any @Composable, Compose UI, or state — Modifier chains (size/width/height/padding), LazyColumn/LazyRow/LazyGrid, mutableStateOf, rememberSaveable, rememberCoroutineScope, LaunchedEffect, DisposableEffect, LifecycleResumeEffect/StartEffect/EventEffect, BackHandler, WindowInsets/safeDrawing, Snapshot.withMutableSnapshot, IconButton/Surface touch targets (48dp), @Preview composables, UDF state hoisting, lazy-layout keys and item animation, iOS system permission dialogs, navigation route argument types, dismissing a Dialog before presenting a native modal, one-shot preselect effects, keyed remember caches, Modifier.keepScreenOn, and Material component defaults.
 user-invocable: false
 paths: "**/*.kt"
 ---
@@ -346,6 +346,12 @@ A `remember {}` that caches a **derived** value (trimmed bytes, an encoded image
 An enum-typed property on a `@Serializable` navigation route crashes iOS at startup (blank screen) while Android works. Compose Multiplatform's navigation resolves enum `NavType`s via reflection that isn't available on Kotlin/Native (iOS); there `parseEnum()` returns `UNKNOWN` (JVM targets — Android, Desktop — work). Route patterns/args are generated **eagerly** when the graph is built, so the `NavHost` throws `IllegalArgumentException: … could not find any NavType …` on the first composition — even if nothing ever navigates to that route.
 
 Routes carry **primitives only** (`String`/`Int`/`Boolean`) — a value class wrapping one is no more resolvable than an enum. For an enum-like param, pass a string id and map it back inside the feature module (with a fallback to the default). A custom `typeMap` `NavType` also works but is more code for no benefit.
+
+## Keep the Screen On with `Modifier.keepScreenOn()`
+`Modifier.keepScreenOn()` is in Compose UI's common code and also works on iOS, where it sets the idle-timer flag. Use it in common code instead of an `expect`/`actual` pair.
+
+## Do Not Restate a Component's Defaults
+Do not pass a value that equals a Material component's default, such as `colors =`, `contentPadding =` or a `.size()` that repeats the default. Before you override a default, look for a component, a variant or a state that already carries the meaning. Override only where Material has no default for that meaning, and say why in a comment. Touch targets are the exception that "Minimum Interactive Component Size" covers.
 
 ## Resources
 For image formats, icon naming, and string resource conventions, see the `compose-resource-conventions` skill.

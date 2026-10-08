@@ -1,6 +1,6 @@
 ---
 name: kotlin-coroutines-conventions
-description: Enforces coroutine safety when writing suspend functions, Flow, runCatching, Dispatchers, coroutineContext, or ensureActive. Prevents CancellationException suppression. Also covers platform implementations owning their own thread dispatch, not re-wrapping suspend functions that are already main-safe, and avoiding async work in constructors/`init` (including ViewModel `init`).
+description: Enforces coroutine safety when writing suspend functions, Flow, runCatching, Dispatchers, coroutineContext, or ensureActive. Prevents CancellationException suppression. Also covers platform implementations owning their own thread dispatch, not re-wrapping suspend functions that are already main-safe, avoiding async work in constructors/`init` (including ViewModel `init`), and app-lifetime scopes with SupervisorJob and no CoroutineExceptionHandler.
 user-invocable: false
 paths: "**/*.kt"
 ---
@@ -27,6 +27,9 @@ currentCoroutineContext().ensureActive()
 // BAD - ambiguous
 coroutineContext.ensureActive()
 ```
+
+## App-Lifetime Scopes: `SupervisorJob` and a Dispatcher, No Handler
+Give an injected app-lifetime scope `SupervisorJob()` and a dispatcher only: `CoroutineScope(SupervisorJob() + dispatcher)`. Do not add a `CoroutineExceptionHandler`. Let an uncaught exception crash, so that the crash report shows it, and handle the expected failures where they happen.
 
 ## Inject Dispatchers
 Don't use `Dispatchers.IO`, `Dispatchers.Default`, etc. directly. Inject dispatchers as a dependency so they can be replaced with `TestDispatcher` in tests.

@@ -1,6 +1,6 @@
 ---
 name: ios-device-conventions
-description: Use when working with a physical iOS device from the command line — installing or launching builds with `xcrun devicectl`, streaming logs, pulling crash reports or app-container files, driving the UI with WebDriverAgent (WDA) over plain HTTP without Appium, building or signing the WDA runner, recording on-device frames for jank/freeze/stutter reports, capturing device traffic with mitmproxy, or StoreKit sandbox testing via the App Store Connect API. Covers pymobiledevice3, the `.xctrunner` bundle-id signing trap, and `/wda/video` 60fps recording. Prevents simulator-based false verification, silently-wrong build artifacts, and misread capture results.
+description: Use when working with a physical iOS device from the command line — installing or launching builds with `xcrun devicectl`, streaming logs, pulling crash reports or app-container files, driving the UI with WebDriverAgent (WDA) over plain HTTP without Appium, building or signing the WDA runner, recording on-device frames for jank/freeze/stutter reports, faking the location, capturing device traffic with mitmproxy, or StoreKit sandbox testing via the App Store Connect API. Covers pymobiledevice3, the `.xctrunner` bundle-id signing trap, and `/wda/video` 60fps recording. Prevents simulator-based false verification, silently-wrong build artifacts, and misread capture results.
 user-invocable: false
 ---
 
@@ -16,6 +16,7 @@ Detail lives in reference files; load the one you need:
 - `references/network-capture.md` — mitmproxy against a device, and the StoreKit-pinning trap
 - `references/storekit-sandbox.md` — sandbox testers, App Store Connect API and JWT signing, intro-offer and storefront traps
 - `references/setup.md` — standing the whole stack up on a new Mac, account, or phone
+- `references/location.md` — faking the device location with `simulate-location`
 
 ## Verify on the Physical Device, Not the Simulator
 Reproduce, investigate and verify on the real iPhone by default — not only for final sign-off. Camera and photo library, face detection, StoreKit and real network conditions all differ in the simulator, so a simulator repro can confirm or deny the wrong thing. If no device is connected, say so and ask rather than substituting a simulator or an Android build.
@@ -31,11 +32,11 @@ xcrun devicectl device process launch --device <UDID> --console <bundleId> > <sc
 pymobiledevice3 syslog live -e "(<ProcessName>|storekitd|appstored|itunesstored)" > <scratch>/syslog.log
 ```
 
-- A `print`/`println`/`NSLog` added ad hoc for diagnosis has not shown up in these streams in practice — don't spend a build round on one; lean on logging the app already emits.
+- **`--console` carries the stdout and stderr of the process that devicectl launched, not os_log.** For an ad hoc diagnosis line, print to stdout and read `--console`. In practice `NSLog` lines have shown up there too, but not in `syslog live`. A logger that writes only to os_log (such as Kermit's default iOS writer) does not reach `--console` unless os_log is mirrored to stderr.
 - `--process-name` takes **one exact name**. For a multi-process union use `-e`/`--regex`, which matches the whole rendered line rather than the process field — anchor the pattern if a process name can also appear inside message bodies.
 - `os_log` redacts URLs and bodies as `<private>`, but CFNetwork task summaries still expose `response_status` and `request_bytes`/`response_bytes` — enough to spot a failing call.
 - Syslog output contains binary bytes: plain `grep` returns nothing, always use **`grep -a`**. The device clock can run seconds behind the Mac, so correlate by event order and log growth, not wall-clock.
-- **`devicectl --console`, WDA's xcuitest start and syslog share one device tunnel and disturb each other.** Start WDA first and syslog after it — starting WDA stalls a running syslog stream — and detach `--console` before taking WDA screenshots, which fail while it is attached.
+- **`devicectl --console`, WDA's xcuitest start and syslog share one device tunnel and disturb each other.** Start WDA first and syslog after it — starting WDA stalls a running syslog stream — and detach `--console` before taking WDA screenshots, which fail while it is attached. `--console` forwards catchable signals (SIGINT, SIGTERM) to the app, so stopping it can end the app too.
 
 ## `devicectl` Essentials
 `xcrun devicectl` is Apple's own device CLI (CoreDevice). It is the only tool here that reaches **system-daemon containers** (e.g. `com.apple.testmanagerd`); pymobiledevice3's house_arrest route only reaches installed apps and fails with `AppNotInstalledError`.
@@ -49,6 +50,7 @@ xcrun devicectl device copy from --device <UDID> --domain-type appDataContainer 
 
 - `info files` takes `--username`, `copy from`/`copy to` take `--user`. The wrong one exits 64, and redirecting stdout swallows the error — pipe to `grep` instead.
 - **There is no delete.** To reclaim space, `copy to` an empty file over the target.
+- **`device info apps` lists only developer apps by default.** Add `--include-all-apps` (or `--include-default-apps`) before you conclude that an App Store or system app is not installed.
 - A dev-signed app's whole sandbox is readable and writable, which is the cheap way past a slow precondition. A DataStore Preferences file is plain protobuf (`PreferenceMap{map<string,Value>=1}`, `Value{bool=1, string=5}`), so a flag is a one-byte flip. Kill the app first — it overwrites the file from memory on its next write.
 
 ## Install and Launch a Debug Build by Default
@@ -62,6 +64,7 @@ xcrun devicectl device process launch --device <UDID> --console <bundleId>
 `-quiet` prints only warnings and errors, so judge the build by its exit code — don't pipe it through `tail` (see gradle-conventions on pipes masking exit codes). Debug is signed with `get-task-allow = true`, so `devicectl … launch` works and `--console` streams stdout. Use an ad-hoc IPA only when the ad-hoc artifact itself is under test: its `get-task-allow = false` makes `devicectl … launch` fail ("invalid code signature… not explicitly trusted") — don't chase that, **launch it through WDA** (`POST /session/<sid>/wda/apps/launch {"bundleId":"<id>"}`), which doesn't attach as a debugger.
 
 - Installing over an existing app keeps its container; uninstall first when a clean container is the point.
+- **A Debug build can keep its code in `<App>.app/<App>.debug.dylib`** (`ENABLE_DEBUG_DYLIB`), with a small stub as the main executable. If that file exists, run `nm`/`strings` on it, or a symbol search finds nothing.
 - **Launch denied after a reinstall** is usually certificate trust, not the network: uninstalling the last app signed by a development cert drops the device's trust entry. Re-trust in Settings → General → VPN & Device Management. Check provisioning with `security cms -D -i <App>.app/embedded.mobileprovision` (`ProvisionedDevices`, `ExpirationDate`).
 
 ## Crash Reports
