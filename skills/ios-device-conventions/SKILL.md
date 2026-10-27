@@ -1,6 +1,6 @@
 ---
 name: ios-device-conventions
-description: Use when working with a physical iOS device from the command line — installing or launching builds with `xcrun devicectl`, streaming logs, pulling crash reports or app-container files, driving the UI with WebDriverAgent (WDA) over plain HTTP without Appium, building or signing the WDA runner, recording on-device frames for jank/freeze/stutter reports, faking the location, capturing device traffic with mitmproxy, or StoreKit sandbox testing via the App Store Connect API. Covers pymobiledevice3, the `.xctrunner` bundle-id signing trap, and `/wda/video` 60fps recording. Prevents simulator-based false verification, silently-wrong build artifacts, and misread capture results.
+description: Use when working with an iOS simulator or a physical iOS device from the command line — installing or launching builds with `xcrun devicectl` or `xcrun simctl`, streaming logs, pulling crash reports or app-container files, driving the UI with WebDriverAgent (WDA) over plain HTTP without Appium, building or signing the WDA runner, choosing between the simulator and the device, recording on-device frames for jank/freeze/stutter reports, faking the location, capturing device traffic with mitmproxy, or StoreKit sandbox testing via the App Store Connect API. Covers pymobiledevice3, the `.xctrunner` bundle-id signing trap, and `/wda/video` 60fps recording. Prevents false simulator verification of device-only behaviour, silently-wrong build artifacts, and misread capture results.
 user-invocable: false
 ---
 
@@ -11,15 +11,32 @@ Two shell rules every snippet depends on:
 - Quote every argument containing `?`, `*` or `[...]` — URLs with query strings, `--include` patterns, bracketed API parameters. In zsh an unmatched glob aborts the whole command with `no matches found` before the program runs, which reads like a legitimate empty result.
 
 Detail lives in reference files; load the one you need:
-- `references/wda.md` — starting the WDA server, a dead runner, signing the runner, driving gotchas, watching and relaying the screen
+- `references/wda.md` — starting the WDA server on a device or a simulator, a dead runner, signing the runner, driving gotchas, watching and relaying the screen
 - `references/measuring-frames.md` — jank/freeze measurement: 60fps XCTest recording, MJPEG, camera roll, GPU counters
 - `references/network-capture.md` — mitmproxy against a device, and the StoreKit-pinning trap
 - `references/storekit-sandbox.md` — sandbox testers, App Store Connect API and JWT signing, intro-offer and storefront traps
 - `references/setup.md` — standing the whole stack up on a new Mac, account, or phone
-- `references/location.md` — faking the device location with `simulate-location`
+- `references/location.md` — faking the location on a device with `simulate-location`, or on a simulator with `simctl location`
 
-## Verify on the Physical Device, Not the Simulator
-Reproduce, investigate and verify on the real iPhone by default — not only for final sign-off. Camera and photo library, face detection, StoreKit and real network conditions all differ in the simulator, so a simulator repro can confirm or deny the wrong thing. If no device is connected, say so and ask rather than substituting a simulator or an Android build.
+## Simulator First, Physical Device for Device-Only Behaviour
+Reproduce, investigate and verify on the simulator by default. WDA, screenshots, the view tree, logs and fake location all work there, and the simulator has no tunnel, lock screen or signing to fail. WDA taps reach Compose Multiplatform content there too. The device commands below have simulator forms:
+- WDA: start it with route 4 in `references/wda.md`, not with `dvt xcuitest` and `usbmux forward`.
+- Install and launch: `xcrun simctl install <sim> <App>.app`, then `xcrun simctl launch --console-pty <sim> <bundleId>` for stdout.
+- os_log: `xcrun simctl spawn <sim> log stream --predicate 'process == "<ProcessName>"'`.
+- Fake location: `xcrun simctl location`, in `references/location.md`.
+
+Use the physical device when the behaviour depends on hardware or on a service that the simulator fakes, because a simulator repro can then confirm or deny the wrong thing:
+- StoreKit sandbox purchases
+- camera, photo library and face detection
+- push notifications from APNs
+- audio output, vibration and real sensor data
+- real network conditions, such as cellular, a slow link or a network change, because the simulator uses the Mac's network
+- frame and performance measurement, because simulator timings come from the Mac's CPU and GPU
+- multi-touch or gestures over an embedded native view, such as a map SDK view
+- a bug that a tester reported on a device and that the simulator does not reproduce
+- the final check before a release build
+
+If a simulator result does not agree with the bug report, repeat the check on the device before you conclude. If the task needs the device and none is connected, say so and ask. Do not substitute the simulator or an Android build for it.
 
 ## Stream Logs Whenever the App Runs
 The screen shows a generic symptom; backend 500s, purchase/verify failures and data-gated UI are only visible in logs. Both streams run until killed — start them in the background with output redirected to a file, then search the file.

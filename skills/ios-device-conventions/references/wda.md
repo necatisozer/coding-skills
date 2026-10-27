@@ -4,8 +4,8 @@ WDA is an XCUITest bundle. iOS only runs one inside a *runner host app*, which X
 - **base id** — what you build with (`PRODUCT_BUNDLE_IDENTIFIER`), e.g. `com.example.wda`
 - **runner id** — base id + `.xctrunner`, e.g. `com.example.wda.xctrunner`; what gets installed, launched, and registered as the App ID
 
-## Three Ways to Start the Server
-Fastest first. None needs Xcode's GUI.
+## Four Ways to Start the Server
+Routes 1 to 3 are for a device, fastest first. Route 4 is for a simulator. None needs Xcode's GUI.
 
 1. **Installed runner, no source:** the two commands in SKILL.md (`dvt xcuitest <runner-id>`, then `usbmux forward 8100 8100`); `/status` answers in ~12 s. `devicectl device process launch` on the runner starts the app but **not** the HTTP server — only the xcuitest route attaches the test plan. The iOS 17+ developer tunnel opens in-process, with no root.
 2. **Built runner, no source:** a hand-written `.xctestrun` (`TestHostPath`, `TestBundlePath`, `IsUITestBundle`, `ProductModuleName`, `UITargetAppPath` pointed at the runner app itself — mandatory — plus `USE_PORT`/`MJPEG_SERVER_PORT` env) run with `xcodebuild test-without-building -xctestrun <file> -destination "id=<UDID>"`, left running.
@@ -22,6 +22,21 @@ xcrun devicectl device install app --device <UDID> \
 ```
 
 With the dedicated profile already installed locally, no network flags are needed. If it still has to be downloaded and no Apple ID is signed into Xcode, add `-allowProvisioningUpdates -authenticationKeyPath <AuthKey_ID.p8> -authenticationKeyID <ID> -authenticationKeyIssuerID <issuer>` — for a manually signed target this only downloads missing profiles.
+
+4. **On a simulator:** build from source for the simulator destination with no signing, then run it and leave it running. The simulator uses the Mac's network, so the server listens on the Mac and needs no forward. The `TEST_RUNNER_` prefix passes each variable into the runner. `/status` answers a few seconds after the start.
+   - **Set `USE_IP=127.0.0.1`,** because without it the HTTP server listens on every interface of the Mac (see SKILL.md › never expose 8100). The MJPEG server listens on every interface in all cases, and no WDA setting changes that, so stop the runner when you are done.
+   - **Move both ports off the device defaults,** because a device forward on 8100 or 9100 blocks them.
+   - **Build once.** If `<scratch>/wda-sim-dd` already holds the products, run only the second command. It blocks, so run it in the background.
+
+```bash
+xcodebuild build-for-testing -project wda-src/WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner \
+  -destination 'platform=iOS Simulator,id=<SIM_UDID>' -derivedDataPath <scratch>/wda-sim-dd \
+  CODE_SIGNING_ALLOWED=NO
+TEST_RUNNER_USE_IP=127.0.0.1 TEST_RUNNER_USE_PORT=8102 TEST_RUNNER_MJPEG_SERVER_PORT=9102 \
+  xcodebuild test-without-building -project wda-src/WebDriverAgent.xcodeproj \
+  -scheme WebDriverAgentRunner -destination 'platform=iOS Simulator,id=<SIM_UDID>' \
+  -derivedDataPath <scratch>/wda-sim-dd
+```
 
 ## When the Runner Dies
 It dies on its own sometimes: killed for memory, or `/status` stays 200 while actions fail with "Not authorized for performing UI testing actions". `/status` alone doesn't prove it can drive the phone — probe with a harmless W3C `pointerMove` with no press. Before relaunching, rule out an attached `devicectl … --console` (SKILL.md › Stream Logs) and check the runner is yours (SKILL.md › ownership).
